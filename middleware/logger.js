@@ -25,8 +25,13 @@ const logger = (req, res, next) => {
   // console.log(`${req.method} ${req.path}`);
   // next();
   // Get username if available (set by verifyJWT), otherwise 'Guest'
-  const user = req.username || "Guest";
-  const logMessage = `${req.method}\t${req.url}\tUser:${user}\t${req.headers.origin}`;
+  const username = req.user || "Guest";
+  const logMessage =
+    `\n` +
+    `Method: ${req.method}\n` +
+    `URL: ${req.originalUrl}\n` +
+    `Username: ${username}\n` +
+    `Origin: ${req.headers.origin || "Unknown"}\n`;
   logEvents(logMessage, "reqLog.log");
   next();
 };

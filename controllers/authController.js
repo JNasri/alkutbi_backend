@@ -2,6 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const asyncHandler = require("express-async-handler");
+const { logEvents } = require("../middleware/logger");
 
 // @desc Login
 // @route POST /auth
@@ -10,18 +11,26 @@ const login = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
+    logEvents("Login failed: Missing username or password", "reqLog.log");
     return res.status(400).json({ message: "All fields are required" });
   }
 
   const foundUser = await User.findOne({ username }).exec();
 
   if (!foundUser || !foundUser.isActive) {
+    logEvents(
+      `Login failed: Invalid user or inactive - ${username}`,
+      "reqLog.log"
+    );
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   const match = await bcrypt.compare(password, foundUser.password);
 
-  if (!match) return res.status(401).json({ message: "Unauthorized" });
+  if (!match) {
+    logEvents(`Login failed: Incorrect password - ${username}`, "reqLog.log");
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
   const accessToken = jwt.sign(
     {
@@ -42,15 +51,15 @@ const login = asyncHandler(async (req, res) => {
     { expiresIn: "8h" }
   );
 
-  // Create secure cookie with refresh token
   res.cookie("jwt", refreshToken, {
-    httpOnly: true, //accessible only by web server
-    secure: true, //https
-    sameSite: "None", //cross-site cookie
-    maxAge: 7 * 24 * 60 * 60 * 1000, //cookie expiry: set to match rT
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  // Send accessToken containing username and roles
+  logEvents(`User logged in: ${foundUser.username}`, "reqLog.log");
+
   res.json({
     accessToken,
     user: {
@@ -64,11 +73,14 @@ const login = asyncHandler(async (req, res) => {
 
 // @desc Refresh
 // @route GET /auth/refresh
-// @access Public - because access token has expired
+// @access Public
 const refresh = (req, res) => {
   const cookies = req.cookies;
 
-  if (!cookies?.jwt) return res.status(401).json({ message: "Unauthorized" });
+  if (!cookies?.jwt) {
+    logEvents("Refresh failed: No JWT cookie", "reqLog.log");
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
   const refreshToken = cookies.jwt;
 
@@ -76,11 +88,20 @@ const refresh = (req, res) => {
     refreshToken,
     process.env.REFRESH_TOKEN_SECRET,
     asyncHandler(async (err, decoded) => {
-      if (err) return res.status(403).json({ message: "Forbidden" });
+      if (err) {
+        logEvents("Refresh failed: Invalid refresh token", "reqLog.log");
+        return res.status(403).json({ message: "Forbidden" });
+      }
 
       const foundUser = await User.findOne({ username: decoded.username });
 
-      if (!foundUser) return res.status(401).json({ message: "Unauthorized" });
+      if (!foundUser) {
+        logEvents(
+          `Refresh failed: No user found for token - ${decoded.username}`,
+          "reqLog.log"
+        );
+        return res.status(401).json({ message: "Unauthorized" });
+      }
 
       const accessToken = jwt.sign(
         {
@@ -91,6 +112,11 @@ const refresh = (req, res) => {
         },
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: "15m" }
+      );
+
+      logEvents(
+        `Token refreshed for user: ${foundUser.username}`,
+        "reqLog.log"
       );
 
       res.json({
@@ -108,10 +134,24 @@ const refresh = (req, res) => {
 
 // @desc Logout
 // @route POST /auth/logout
-// @access Public - just to clear cookie if exists
+// @access Public
 const logout = (req, res) => {
   const cookies = req.cookies;
-  if (!cookies?.jwt) return res.sendStatus(204); //No content
+  if (!cookies?.jwt) {
+    logEvents("Logout: No JWT cookie present", "reqLog.log");
+    return res.sendStatus(204);
+  }
+
+  const refreshToken = cookies.jwt;
+
+  // Optionally decode token to log who logged out
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    logEvents(`User logged out: ${decoded.username}`, "reqLog.log");
+  } catch (err) {
+    logEvents("Logout: Failed to decode token", "reqLog.log");
+  }
+
   res.clearCookie("jwt", { httpOnly: true, sameSite: "None", secure: true });
   res.json({ message: "Cookie cleared" });
 };

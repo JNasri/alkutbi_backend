@@ -20,14 +20,16 @@ app.use(cookieParser());
 
 // loggers
 const { logger, logEvents } = require("./middleware/logger");
-app.use(logger);
+const verifyJWT = require("./middleware/verifyJWT");
 
-// routes
+// Public route (no auth)
 app.use("/auth", require("./routes/authRoutes"));
-app.use("/users", require("./routes/userRoutes"));
-app.use("/vouchers", require("./routes/voucherRoutes"));
-app.use("/incomings", require("./routes/incomingRoutes"));
-app.use("/outgoings", require("./routes/outgoingRoutes"));
+
+// Protected routes (auth + logging)
+app.use("/users", verifyJWT, logger, require("./routes/userRoutes"));
+app.use("/vouchers", verifyJWT, logger, require("./routes/voucherRoutes"));
+app.use("/incomings", verifyJWT, logger, require("./routes/incomingRoutes"));
+app.use("/outgoings", verifyJWT, logger, require("./routes/outgoingRoutes"));
 
 // app listen + (err handler)
 app.use(errorHandler);

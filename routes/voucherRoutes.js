@@ -2,9 +2,6 @@ const express = require("express");
 const router = express.Router();
 const voucherController = require("../controllers/voucherController");
 const upload = require("../config/multer");
-const verifyJWT = require("../middleware/verifyJWT");
-
-router.use(verifyJWT);
 
 router
   // vouchers
