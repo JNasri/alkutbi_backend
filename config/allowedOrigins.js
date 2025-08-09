@@ -5,6 +5,8 @@ const allowedOrigins = [
   // "https://your-production-url.com",
   "https://alkutbi-frontend.onrender.com",
   "http://alkutbi-frontend-build.s3-website.me-south-1.amazonaws.com",
+  "https://alkutbigroup.click",
+  "https://www.alkutbigroup.click",
 ];
 
 module.exports = allowedOrigins;
