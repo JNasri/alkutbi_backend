@@ -7,6 +7,11 @@ const outgoingSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    outgoingType: {
+      type: String,
+      enum: ["internal", "external"],
+      required: true,
+     },
     to: {
       type: String,
       default: null,
@@ -24,6 +29,10 @@ const outgoingSchema = new mongoose.Schema(
       default: null,
     },
     passportNumber: {
+      type: String,
+      default: null,
+    },
+    borderNumber: {
       type: String,
       default: null,
     },

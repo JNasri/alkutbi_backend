@@ -41,7 +41,7 @@ const getIncomingById = async (req, res) => {
 // @access Private
 const createNewIncoming = asyncHandler(async (req, res) => {
   const bucketName = process.env.S3_BUCKET_NAME_ATTA;
-  const { to, from, date, purpose, passportNumber } = req.body;
+  const { to, from, date, purpose, passportNumber, borderNumber, incomingType } = req.body;
   const attachment = req.file;
 
   if (!attachment) {
@@ -65,7 +65,7 @@ const createNewIncoming = asyncHandler(async (req, res) => {
   const s3Url = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 
   // Confirm data
-  if (!to || !from || !date || !newId) {
+  if (!to || !from || !date || !newId || !incomingType || !["internal", "external"].includes(incomingType)) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
@@ -77,6 +77,8 @@ const createNewIncoming = asyncHandler(async (req, res) => {
     date,
     purpose,
     passportNumber,
+    borderNumber,
+    incomingType,
     attachment: s3Url, // store the file URL
   });
 
@@ -104,6 +106,8 @@ const updateIncoming = asyncHandler(async (req, res) => {
     date,
     purpose,
     passportNumber,
+    borderNumber,
+    incomingType,
     removeAttachment,
   } = req.body;
 
@@ -128,6 +132,8 @@ const updateIncoming = asyncHandler(async (req, res) => {
   incoming.date = date ?? incoming.date;
   incoming.purpose = purpose ?? incoming.purpose;
   incoming.passportNumber = passportNumber ?? incoming.passportNumber;
+  incoming.borderNumber = borderNumber ?? incoming.borderNumber;
+  incoming.incomingType = incomingType ?? incoming.incomingType;
   incoming.updatedAt = new Date();
 
   const s3Key = `${incoming.identifier}.pdf`;
