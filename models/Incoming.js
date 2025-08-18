@@ -36,6 +36,10 @@ const incomingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    letterNumber: {
+      type: String,
+      default: null,
+    },
     attachment: {
       type: String,
       default: null,

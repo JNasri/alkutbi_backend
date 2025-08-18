@@ -41,7 +41,7 @@ const getIncomingById = async (req, res) => {
 // @access Private
 const createNewIncoming = asyncHandler(async (req, res) => {
   const bucketName = process.env.S3_BUCKET_NAME_ATTA;
-  const { to, from, date, purpose, passportNumber, borderNumber, incomingType } = req.body;
+  const { to, from, date, purpose, passportNumber, borderNumber,letterNumber, incomingType } = req.body;
   const attachment = req.file;
 
   if (!attachment) {
@@ -78,6 +78,7 @@ const createNewIncoming = asyncHandler(async (req, res) => {
     purpose,
     passportNumber,
     borderNumber,
+    letterNumber,
     incomingType,
     attachment: s3Url, // store the file URL
   });
@@ -107,6 +108,7 @@ const updateIncoming = asyncHandler(async (req, res) => {
     purpose,
     passportNumber,
     borderNumber,
+    letterNumber,
     incomingType,
     removeAttachment,
   } = req.body;
@@ -133,6 +135,7 @@ const updateIncoming = asyncHandler(async (req, res) => {
   incoming.purpose = purpose ?? incoming.purpose;
   incoming.passportNumber = passportNumber ?? incoming.passportNumber;
   incoming.borderNumber = borderNumber ?? incoming.borderNumber;
+  incoming.letterNumber = letterNumber ?? incoming.letterNumber;
   incoming.incomingType = incomingType ?? incoming.incomingType;
   incoming.updatedAt = new Date();
 

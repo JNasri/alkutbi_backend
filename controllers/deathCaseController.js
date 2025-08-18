@@ -47,6 +47,7 @@ const createDeathCase = asyncHandler(async (req, res) => {
     cityOfDeath,
     hospital,
     comment,
+    status
   } = req.body;
 
   // Required validation
@@ -100,6 +101,7 @@ const createDeathCase = asyncHandler(async (req, res) => {
     cityOfDeath,
     hospital,
     comment,
+    status,
     ...attachments,
   });
 
@@ -131,6 +133,7 @@ const updateDeathCase = asyncHandler(async (req, res) => {
     cityOfDeath,
     hospital,
     comment,
+    status
   } = req.body;
 
   if (!id) return res.status(400).json({ message: "ID is required" });
@@ -150,6 +153,7 @@ const updateDeathCase = asyncHandler(async (req, res) => {
   deathCase.cityOfDeath = cityOfDeath ?? deathCase.cityOfDeath;
   deathCase.hospital = hospital ?? deathCase.hospital;
   deathCase.comment = comment ?? deathCase.comment;
+  deathCase.status = status ?? deathCase.status;
   deathCase.updatedAt = new Date();
 
   // Update attachments if new ones provided

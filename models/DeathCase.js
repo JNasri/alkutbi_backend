@@ -27,6 +27,7 @@ const deathCaseSchema = new mongoose.Schema(
 
     // Extra field
     comment: { type: String, default: null },
+    status: { type: String, default: null },
 
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
