@@ -31,7 +31,13 @@ app.use("/vouchers", verifyJWT, logger, require("./routes/voucherRoutes"));
 app.use("/incomings", verifyJWT, logger, require("./routes/incomingRoutes"));
 app.use("/outgoings", verifyJWT, logger, require("./routes/outgoingRoutes"));
 app.use("/deathcases", verifyJWT, logger, require("./routes/deathCaseRoutes"));
-app.use("/prisoncases", verifyJWT, logger, require("./routes/prisonCaseRoutes"))
+app.use(
+  "/prisoncases",
+  verifyJWT,
+  logger,
+  require("./routes/prisonCaseRoutes")
+);
+app.use("/assets", verifyJWT, logger, require("./routes/assetRoutes"));
 app.use("/logs", verifyJWT, logger, require("./routes/logRoutes"));
 
 // app listen + (err handler)

@@ -11,7 +11,7 @@ const incomingSchema = new mongoose.Schema(
       type: String,
       enum: ["internal", "external"],
       required: true,
-     },
+    },
     to: {
       type: String,
       default: null,
