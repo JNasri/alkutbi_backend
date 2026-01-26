@@ -1,0 +1,94 @@
+const mongoose = require("mongoose");
+const AutoIncrement = require("mongoose-sequence")(mongoose);
+
+const purchaseOrderSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      required: true,
+      enum: ["new", "audited", "authorized", "finalized"],
+      default: "new",
+    },
+    dayName: {
+      type: String,
+      required: true,
+    },
+    dateHijri: {
+      type: String,
+      required: true,
+    },
+    dateAD: {
+      type: String,
+      required: true,
+    },
+    purchasingId: {
+      type: String,
+      required: true,
+    },
+    paymentMethod: {
+      type: String,
+      required: false,
+      enum: ["cash", "visa", "bank_transfer", "sadad", ""],
+      default: "",
+    },
+    bankName: {
+      type: String,
+      default: "",
+    },
+    ibanNumber: {
+      type: String,
+      default: "",
+    },
+    managementName: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    supplier: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    item: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    totalAmount: {
+      type: Number,
+      required: false,
+      default: 0,
+    },
+    totalAmountText: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    deductedFrom: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    addedTo: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false,
+      ref: "User",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+purchaseOrderSchema.plugin(AutoIncrement, {
+  inc_field: "ticket",
+  id: "ticketNums",
+  start_seq: 1,
+});
+
+module.exports = mongoose.model("PurchaseOrder", purchaseOrderSchema);

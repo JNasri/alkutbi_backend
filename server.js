@@ -39,6 +39,12 @@ app.use(
 );
 app.use("/assets", verifyJWT, logger, require("./routes/assetRoutes"));
 app.use("/logs", verifyJWT, logger, require("./routes/logRoutes"));
+app.use(
+  "/purchaseorders",
+  verifyJWT,
+  logger,
+  require("./routes/purchaseOrderRoutes")
+);
 
 // app listen + (err handler)
 app.use(errorHandler);
