@@ -51,15 +51,17 @@ const login = asyncHandler(async (req, res) => {
     { expiresIn: "8h" }
   );
 
+  // Create secure cookie with refresh token
   res.cookie("jwt", refreshToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "None",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    httpOnly: true, // accessible only by web server
+    secure: process.env.NODE_ENV === "production", // https
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax", // cross-site cookie in production, Lax in development
+    maxAge: 7 * 24 * 60 * 60 * 1000, // cookie expiry: set to match refresh token or longer
   });
 
   logEvents(`User logged in: ${foundUser.username}`, "reqLog.log");
 
+  // Send accessToken containing username and roles
   res.json({
     accessToken,
     user: {
@@ -93,11 +95,13 @@ const refresh = (req, res) => {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const foundUser = await User.findOne({ username: decoded.username });
+      const foundUser = await User.findOne({
+        username: decoded.username,
+      }).exec();
 
-      if (!foundUser) {
+      if (!foundUser || !foundUser.isActive) {
         logEvents(
-          `Refresh failed: No user found for token - ${decoded.username}`,
+          `Refresh failed: No active user found for token - ${decoded.username}`,
           "reqLog.log"
         );
         return res.status(401).json({ message: "Unauthorized" });
@@ -107,6 +111,8 @@ const refresh = (req, res) => {
         {
           UserInfo: {
             username: foundUser.username,
+            en_name: foundUser.en_name,
+            ar_name: foundUser.ar_name,
             roles: foundUser.roles,
           },
         },
@@ -139,7 +145,7 @@ const logout = (req, res) => {
   const cookies = req.cookies;
   if (!cookies?.jwt) {
     logEvents("Logout: No JWT cookie present", "reqLog.log");
-    return res.sendStatus(204);
+    return res.sendStatus(204); // No content
   }
 
   const refreshToken = cookies.jwt;
@@ -149,10 +155,14 @@ const logout = (req, res) => {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
     logEvents(`User logged out: ${decoded.username}`, "reqLog.log");
   } catch (err) {
-    logEvents("Logout: Failed to decode token", "reqLog.log");
+    logEvents("Logout: Failed to decode token or token expired", "reqLog.log");
   }
 
-  res.clearCookie("jwt", { httpOnly: true, sameSite: "None", secure: true });
+  res.clearCookie("jwt", {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    secure: process.env.NODE_ENV === "production",
+  });
   res.json({ message: "Cookie cleared" });
 };
 

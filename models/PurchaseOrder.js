@@ -39,6 +39,28 @@ const purchaseOrderSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    bankNameFrom: {
+      type: String,
+      default: "",
+    },
+    ibanNumberFrom: {
+      type: String,
+      default: "",
+    },
+    bankNameTo: {
+      type: String,
+      default: "",
+    },
+    ibanNumberTo: {
+      type: String,
+      default: "",
+    },
+    transactionType: {
+      type: String,
+      required: false,
+      enum: ["expenses", "receivables", "custody", "advance", ""],
+      default: "",
+    },
     managementName: {
       type: String,
       required: false,

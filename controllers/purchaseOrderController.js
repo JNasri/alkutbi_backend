@@ -28,6 +28,11 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     paymentMethod,
     bankName,
     ibanNumber,
+    bankNameFrom,
+    ibanNumberFrom,
+    bankNameTo,
+    ibanNumberTo,
+    transactionType,
     managementName,
     supplier,
     item,
@@ -77,8 +82,8 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
   }
 
   // If payment method is bank_transfer or sadad, bank details are required
-  if ((paymentMethod === "bank_transfer" || paymentMethod === "sadad") && (!bankName || !ibanNumber)) {
-    return res.status(400).json({ message: "Bank name and IBAN number are required for this payment method" });
+  if ((paymentMethod === "bank_transfer" || paymentMethod === "sadad") && (!bankNameFrom || !ibanNumberFrom || !bankNameTo || !ibanNumberTo)) {
+    return res.status(400).json({ message: "All bank details (from and to) are required for this payment method" });
   }
 
   // Create and store the new purchase order
@@ -91,6 +96,11 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     paymentMethod: paymentMethod || "",
     bankName: bankName || "",
     ibanNumber: ibanNumber || "",
+    bankNameFrom: bankNameFrom || "",
+    ibanNumberFrom: ibanNumberFrom || "",
+    bankNameTo: bankNameTo || "",
+    ibanNumberTo: ibanNumberTo || "",
+    transactionType: transactionType || "",
     managementName: managementName || "",
     supplier: supplier || "",
     item: item || "",
@@ -121,6 +131,11 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
     paymentMethod,
     bankName,
     ibanNumber,
+    bankNameFrom,
+    ibanNumberFrom,
+    bankNameTo,
+    ibanNumberTo,
+    transactionType,
     managementName,
     supplier,
     item,
@@ -159,8 +174,8 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
   }
 
   // If payment method is bank_transfer or sadad, bank details are required
-  if ((paymentMethod === "bank_transfer" || paymentMethod === "sadad") && (!bankName || !ibanNumber)) {
-    return res.status(400).json({ message: "Bank name and IBAN number are required for this payment method" });
+  if ((paymentMethod === "bank_transfer" || paymentMethod === "sadad") && (!bankNameFrom || !ibanNumberFrom || !bankNameTo || !ibanNumberTo)) {
+    return res.status(400).json({ message: "All bank details (from and to) are required for this payment method" });
   }
 
   // Confirm purchase order exists to update
@@ -178,6 +193,11 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
   purchaseOrder.paymentMethod = paymentMethod;
   purchaseOrder.bankName = bankName || "";
   purchaseOrder.ibanNumber = ibanNumber || "";
+  purchaseOrder.bankNameFrom = bankNameFrom || "";
+  purchaseOrder.ibanNumberFrom = ibanNumberFrom || "";
+  purchaseOrder.bankNameTo = bankNameTo || "";
+  purchaseOrder.ibanNumberTo = ibanNumberTo || "";
+  purchaseOrder.transactionType = transactionType || "";
   purchaseOrder.managementName = managementName;
   purchaseOrder.supplier = supplier;
   purchaseOrder.item = item;

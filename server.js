@@ -45,6 +45,12 @@ app.use(
   logger,
   require("./routes/purchaseOrderRoutes")
 );
+app.use(
+  "/collectionorders",
+  verifyJWT,
+  logger,
+  require("./routes/collectionOrderRoutes")
+);
 
 // app listen + (err handler)
 app.use(errorHandler);

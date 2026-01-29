@@ -33,11 +33,14 @@ const createNewUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "All fields are required" });
   }
 
-  // Check for duplicate username
-  const duplicate = await User.findOne({ username, email }).lean().exec();
+  // Check for duplicate username or email
+  const duplicate = await User.findOne({ 
+    $or: [{ username }, { email }] 
+  }).lean().exec();
 
   if (duplicate) {
-    return res.status(409).json({ message: "Duplicate User! Please check" });
+    const field = duplicate.username === username ? "Username" : "Email";
+    return res.status(409).json({ message: `${field} already in use!` });
   }
 
   // Hash password
@@ -89,10 +92,14 @@ const updateUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "User not found" });
   }
 
-  // Check for duplicate username
-  const duplicate = await User.findOne({ username }).lean().exec();
+  // Check for duplicate username or email
+  const duplicate = await User.findOne({ 
+    $or: [{ username }, { email }] 
+  }).lean().exec();
+
   if (duplicate && duplicate?._id.toString() !== id) {
-    return res.status(409).json({ message: "Duplicate User! Please check" });
+    const field = duplicate.username === username ? "Username" : "Email";
+    return res.status(409).json({ message: `${field} already in use!` });
   }
 
   user.en_name = en_name;

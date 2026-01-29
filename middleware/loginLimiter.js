@@ -1,7 +1,7 @@
-const rateLimti = require("express-rate-limit");
-const logEvents = require("./logger");
+const rateLimit = require("express-rate-limit");
+const { logEvents } = require("./logger");
 
-const loginLimiter = rateLimti({
+const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 50,
   message: {
@@ -10,7 +10,7 @@ const loginLimiter = rateLimti({
   },
   handler: (req, res, next, options) => {
     logEvents(`Too many attempts on ${req.url}`, "LoginLimiterError.log");
-    next(options.message);
+    res.status(options.statusCode).send(options.message);
   },
   standardHeaders: true,
   legacyHeaders: false,
