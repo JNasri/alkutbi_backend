@@ -15,7 +15,10 @@ const login = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "All fields are required" });
   }
 
-  const foundUser = await User.findOne({ username }).exec();
+  // Search for the user case-insensitively using regex
+  const foundUser = await User.findOne({ 
+    username: { $regex: new RegExp(`^${username}$`, "i") } 
+  }).exec();
 
   if (!foundUser || !foundUser.isActive) {
     logEvents(
@@ -96,7 +99,7 @@ const refresh = (req, res) => {
       }
 
       const foundUser = await User.findOne({
-        username: decoded.username,
+        username: { $regex: new RegExp(`^${decoded.username}$`, "i") },
       }).exec();
 
       if (!foundUser || !foundUser.isActive) {
