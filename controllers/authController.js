@@ -62,7 +62,7 @@ const login = asyncHandler(async (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000, // cookie expiry: set to match refresh token or longer
   });
 
-  logEvents(`User logged in: ${foundUser.username}`, "reqLog.log");
+  // logEvents(`User logged in: ${foundUser.username}`, "reqLog.log");
 
   // Send accessToken containing username and roles
   res.json({
@@ -156,7 +156,7 @@ const logout = (req, res) => {
   // Optionally decode token to log who logged out
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    logEvents(`User logged out: ${decoded.username}`, "reqLog.log");
+    // logEvents(`User logged out: ${decoded.username}`, "reqLog.log");
   } catch (err) {
     logEvents("Logout: Failed to decode token or token expired", "reqLog.log");
   }

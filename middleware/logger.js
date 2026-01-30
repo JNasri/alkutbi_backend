@@ -1,39 +1,142 @@
-const { format } = require("date-fns");
-const { v4: uuid } = require("uuid");
-const fs = require("fs");
-const fsPromises = require("fs").promises;
-const path = require("path");
+const Audit = require("../models/Audit");
+const mongoose = require("mongoose");
 
-const logEvents = async (message, logName) => {
-  const dateTime = format(new Date(), "dd-MM-yyyy\tHH:mm:ss");
-  const logItem = `${dateTime}\t${uuid()}\t${message}\n`;
-  try {
-    if (!fs.existsSync(path.join(__dirname, "..", "logs"))) {
-      await fsPromises.mkdir(path.join(__dirname, "..", "logs"));
-    }
-    await fsPromises.appendFile(
-      path.join(__dirname, "..", "logs", logName),
-      logItem
-    );
-  } catch (err) {
-    console.log(err);
-  }
+// Mapping of route segments to Models
+const modelMap = {
+  users: "User",
+  vouchers: "Voucher",
+  incomings: "Incoming",
+  outgoings: "Outgoing",
+  deathcases: "DeathCase",
+  prisoncases: "PrisonCase",
+  assets: "Asset",
+  purchaseorders: "PurchaseOrder",
+  collectionorders: "CollectionOrder",
 };
 
-const logger = (req, res, next) => {
-  // logEvents(`${req.method}\t${req.url}\t${req.headers.origin}`, "reqLog.log");
-  // console.log(`${req.method} ${req.path}`);
-  // next();
-  // Get username if available (set by verifyJWT), otherwise 'Guest'
+// ID fields for different models
+const idFields = [
+  "identifier",
+  "purchasingId",
+  "collectingId",
+  "voucherNumber",
+  "assetId",
+  "id",
+  "_id",
+];
+
+// Helper to get diff between two objects
+const getDiff = (oldData, newData) => {
+  const diffs = [];
+  const ignoreFields = [
+    "_id",
+    "updatedAt",
+    "createdAt",
+    "__v",
+    "password",
+    "id",
+    "user",
+  ];
+
+  // Combine keys from both to be thorough
+  const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
+
+  for (const key of allKeys) {
+    if (ignoreFields.includes(key)) continue;
+
+    const oldVal = oldData[key];
+    const newVal = newData[key];
+
+    // Simple comparison for primitives
+    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      diffs.push(`${key}: ${oldVal || "Empty"} -> ${newVal || "Empty"}`);
+    }
+  }
+  return diffs.join(" | ");
+};
+
+// Helper to find ID in an object
+const findId = (obj) => {
+  for (const field of idFields) {
+    if (obj[field]) return obj[field];
+  }
+  return null;
+};
+
+const logger = async (req, res, next) => {
   const username = req.user || "Guest";
-  const logMessage =
-    `\n` +
-    `Method: ${req.method}\n` +
-    `URL: ${req.originalUrl}\n` +
-    `Username: ${username}\n` +
-    `Origin: ${req.headers.origin || "Unknown"}\n`;
-  logEvents(logMessage, "reqLog.log");
+  const en_name = req.en_name || "";
+  const ar_name = req.ar_name || "";
+
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    const segments = req.originalUrl.split("/").filter(Boolean);
+    const resourceSegment = segments[0];
+    const modelName = modelMap[resourceSegment];
+    let oldData = null;
+
+    // 1. Fetch old data if applicable
+    if (["PUT", "PATCH", "DELETE"].includes(req.method) && modelName) {
+      try {
+        const Model = mongoose.model(modelName);
+        // Try to get ID from params or body, use optional chaining for req.body
+        const id = segments[1] || req.body?.id || req.body?._id;
+        if (id && mongoose.Types.ObjectId.isValid(id)) {
+          oldData = await Model.findById(id).lean();
+        }
+      } catch (err) {
+        console.error("Error fetching old data for Audit:", err);
+      }
+    }
+
+    const originalJson = res.json;
+    res.json = function (data) {
+      res.json = originalJson;
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        let action = "Unknown";
+        if (req.method === "POST") action = "Add";
+        else if (["PUT", "PATCH"].includes(req.method)) action = "Edit";
+        else if (req.method === "DELETE") action = "Delete";
+
+        let details = "";
+
+        if (action === "Add") {
+          // Try to find ID in response or request
+          const newId = findId(data) || findId(req.body) || "New Record";
+          details = `Added new ${resourceSegment}. ID: ${newId}`;
+        } else if (action === "Edit" && oldData) {
+          const recordId = findId(oldData) || findId(req.body) || segments[1] || "Unknown";
+          const newData = (data && typeof data === 'object' && !data.message) ? data : { ...oldData, ...req.body };
+          const diff = getDiff(oldData, newData);
+          details = diff ? `Updated ${resourceSegment} (ID: ${recordId}). Changed: ${diff}` : `Updated ${resourceSegment} (ID: ${recordId})`;
+        } else if (action === "Delete") {
+          const deletedId = findId(oldData || {}) || segments[1] || req.body.id || "Unknown";
+          details = `Deleted ${resourceSegment} (ID: ${deletedId})`;
+        } else {
+          details = `Performed ${action} on ${req.originalUrl}`;
+        }
+
+        Audit.create({
+          user: username,
+          en_name,
+          ar_name,
+          action,
+          resource: resourceSegment || "System",
+          details,
+          method: req.method,
+          url: req.originalUrl,
+        }).catch((err) => console.error("Audit creation failed:", err));
+      }
+
+      return originalJson.call(this, data);
+    };
+  }
+
   next();
+};
+
+const logEvents = async (message, logName) => {
+  console.log(`[File Log] ${logName}: ${message}`);
 };
 
 module.exports = { logEvents, logger };
