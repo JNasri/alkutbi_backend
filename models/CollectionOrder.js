@@ -42,7 +42,6 @@ const collectionOrderSchema = new mongoose.Schema(
     collectedFrom: {
       type: String,
       required: false,
-      enum: ["umrah", "transport", "hotels", "others", "additional", ""],
       default: "",
     },
     totalAmount: {
@@ -55,10 +54,24 @@ const collectionOrderSchema = new mongoose.Schema(
       required: false,
       default: "",
     },
-    user: {
+    deductedFrom: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    addedTo: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    issuer: {
       type: mongoose.Schema.Types.ObjectId,
       required: false,
       ref: "User",
+    },
+    fileUrl: {
+      type: String,
+      default: "",
     },
   },
   {

@@ -1,12 +1,15 @@
 const CollectionOrder = require("../models/CollectionOrder");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
+const { uploadToS3 } = require("../config/uploadToS3");
 
 // @desc Get all collection orders
 // @route GET /collectionorders
 // @access Private
 const getAllCollectionOrders = asyncHandler(async (req, res) => {
-  const collectionOrders = await CollectionOrder.find().populate("user", "username").lean();
+  const collectionOrders = await CollectionOrder.find()
+    .populate("issuer", "username ar_name")
+    .lean();
 
   if (!collectionOrders?.length) {
     return res.status(400).json({ message: "No collection orders found" });
@@ -31,7 +34,20 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     collectedFrom,
     totalAmount,
     totalAmountText,
+    deductedFrom,
+    addedTo,
   } = req.body;
+
+  // Handle file upload to S3 if file exists
+  let fileUrl = "";
+  if (req.file) {
+    fileUrl = await uploadToS3(req.file);
+  }
+
+  // Mandatory check for finalized status
+  if (status === "finalized" && !fileUrl) {
+    return res.status(400).json({ message: "Document upload is mandatory to finalize the order" });
+  }
 
   // Auto-generate collectingId if not provided
   if (!collectingId) {
@@ -72,13 +88,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // Validate collectedFrom if provided
-  if (collectedFrom) {
-    const validCollectedFrom = ["umrah", "transport", "hotels", "others", "additional"];
-    if (!validCollectedFrom.includes(collectedFrom)) {
-      return res.status(400).json({ message: "Invalid collected from value" });
-    }
-  }
+
 
   // Create and store the new collection order
   const collectionOrder = await CollectionOrder.create({
@@ -93,6 +103,10 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     collectedFrom: collectedFrom || "",
     totalAmount: totalAmount || 0,
     totalAmountText: totalAmountText || "",
+    deductedFrom: deductedFrom || "",
+    addedTo: addedTo || "",
+    issuer: req.userId || null,
+    fileUrl: fileUrl || "",
   });
 
   if (collectionOrder) {
@@ -119,6 +133,8 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
     collectedFrom,
     totalAmount,
     totalAmountText,
+    deductedFrom,
+    addedTo,
   } = req.body;
 
   // Confirm data - only status, dates, dayName, and collectingId are required
@@ -149,19 +165,24 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // Validate collectedFrom if provided
-  if (collectedFrom) {
-    const validCollectedFrom = ["umrah", "transport", "hotels", "others", "additional"];
-    if (!validCollectedFrom.includes(collectedFrom)) {
-      return res.status(400).json({ message: "Invalid collected from value" });
-    }
-  }
+
 
   // Confirm collection order exists to update
   const collectionOrder = await CollectionOrder.findById(id).exec();
 
   if (!collectionOrder) {
     return res.status(400).json({ message: "Collection order not found" });
+  }
+
+  // Handle file upload to S3 if file exists
+  let fileUrl = "";
+  if (req.file) {
+    fileUrl = await uploadToS3(req.file);
+  }
+
+  // Mandatory check for finalized status
+  if (status === "finalized" && !fileUrl && !collectionOrder.fileUrl) {
+    return res.status(400).json({ message: "Document upload is mandatory to finalize the order" });
   }
 
   if (status) collectionOrder.status = status;
@@ -175,6 +196,9 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
   collectionOrder.collectedFrom = collectedFrom;
   collectionOrder.totalAmount = totalAmount;
   collectionOrder.totalAmountText = totalAmountText;
+  collectionOrder.deductedFrom = deductedFrom;
+  collectionOrder.addedTo = addedTo;
+  if (fileUrl) collectionOrder.fileUrl = fileUrl;
 
   const updatedCollectionOrder = await collectionOrder.save();
 

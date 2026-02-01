@@ -42,6 +42,7 @@ const login = asyncHandler(async (req, res) => {
         en_name: foundUser.en_name,
         ar_name: foundUser.ar_name,
         roles: foundUser.roles,
+        userId: foundUser._id,
       },
     },
     process.env.ACCESS_TOKEN_SECRET,
@@ -117,16 +118,17 @@ const refresh = (req, res) => {
             en_name: foundUser.en_name,
             ar_name: foundUser.ar_name,
             roles: foundUser.roles,
+            userId: foundUser._id,
           },
         },
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: "15m" }
       );
 
-      logEvents(
-        `Token refreshed for user: ${foundUser.username}`,
-        "reqLog.log"
-      );
+      // logEvents(
+      //   `Token refreshed for user: ${foundUser.username}`,
+      //   "reqLog.log"
+      // );
 
       res.json({
         accessToken,

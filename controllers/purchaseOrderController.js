@@ -1,12 +1,15 @@
 const PurchaseOrder = require("../models/PurchaseOrder");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
+const { uploadToS3 } = require("../config/uploadToS3");
 
 // @desc Get all purchase orders
 // @route GET /purchaseorders
 // @access Private
 const getAllPurchaseOrders = asyncHandler(async (req, res) => {
-  const purchaseOrders = await PurchaseOrder.find().populate("user", "username").lean();
+  const purchaseOrders = await PurchaseOrder.find()
+    .populate("issuer", "username ar_name")
+    .lean();
 
   if (!purchaseOrders?.length) {
     return res.status(400).json({ message: "No purchase orders found" });
@@ -41,6 +44,17 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     deductedFrom,
     addedTo,
   } = req.body;
+
+  // Handle file upload to S3 if file exists
+  let fileUrl = "";
+  if (req.file) {
+    fileUrl = await uploadToS3(req.file);
+  }
+
+  // Mandatory check for finalized status
+  if (status === "finalized" && !fileUrl) {
+    return res.status(400).json({ message: "Document upload is mandatory to finalize the order" });
+  }
 
   // Auto-generate purchasingId if not provided
   if (!purchasingId) {
@@ -108,6 +122,8 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     totalAmountText: totalAmountText || "",
     deductedFrom: deductedFrom || "",
     addedTo: addedTo || "",
+    issuer: req.userId || null,
+    fileUrl: fileUrl || "",
   });
 
   if (purchaseOrder) {
@@ -185,6 +201,17 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Purchase order not found" });
   }
 
+  // Handle file upload to S3 if file exists
+  let fileUrl = "";
+  if (req.file) {
+    fileUrl = await uploadToS3(req.file);
+  }
+
+  // Mandatory check for finalized status
+  if (status === "finalized" && !fileUrl && !purchaseOrder.fileUrl) {
+    return res.status(400).json({ message: "Document upload is mandatory to finalize the order" });
+  }
+
   if (status) purchaseOrder.status = status;
   purchaseOrder.dayName = dayName;
   purchaseOrder.dateHijri = dateHijri;
@@ -205,6 +232,7 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
   purchaseOrder.totalAmountText = totalAmountText;
   purchaseOrder.deductedFrom = deductedFrom;
   purchaseOrder.addedTo = addedTo;
+  if (fileUrl) purchaseOrder.fileUrl = fileUrl;
 
   const updatedPurchaseOrder = await purchaseOrder.save();
 

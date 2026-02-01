@@ -96,10 +96,14 @@ const purchaseOrderSchema = new mongoose.Schema(
       required: false,
       default: "",
     },
-    user: {
+    issuer: {
       type: mongoose.Schema.Types.ObjectId,
       required: false,
       ref: "User",
+    },
+    fileUrl: {
+      type: String,
+      default: "",
     },
   },
   {

@@ -101,20 +101,29 @@ const logger = async (req, res, next) => {
         let details = "";
 
         if (action === "Add") {
-          // Try to find ID in response or request
-          const newId = findId(data) || findId(req.body) || "New Record";
-          details = `Added new ${resourceSegment}. ID: ${newId}`;
-        } else if (action === "Edit" && oldData) {
-          const recordId = findId(oldData) || findId(req.body) || segments[1] || "Unknown";
-          const newData = (data && typeof data === 'object' && !data.message) ? data : { ...oldData, ...req.body };
-          const diff = getDiff(oldData, newData);
-          details = diff ? `Updated ${resourceSegment} (ID: ${recordId}). Changed: ${diff}` : `Updated ${resourceSegment} (ID: ${recordId})`;
-        } else if (action === "Delete") {
-          const deletedId = findId(oldData || {}) || segments[1] || req.body.id || "Unknown";
-          details = `Deleted ${resourceSegment} (ID: ${deletedId})`;
-        } else {
-          details = `Performed ${action} on ${req.originalUrl}`;
-        }
+            // Try to find ID in response or request
+            const newId = findId(data) || findId(req.body) || "New Record";
+            details = `Added new ${resourceSegment}
+          ID: ${newId}`;
+
+          } else if (action === "Edit" && oldData) {
+            const recordId = findId(oldData) || findId(req.body) || segments[1] || "Unknown";
+            const newData = (data && typeof data === 'object' && !data.message) ? data : { ...oldData, ...req.body };
+            const diff = getDiff(oldData, newData);
+            
+            // Using \n here for a cleaner single-line look in the code
+            details = diff 
+              ? `Updated ${resourceSegment}\n(ID: ${recordId}).\nChanged: ${diff}` 
+              : `Updated ${resourceSegment}\n(ID: ${recordId})`;
+
+          } else if (action === "Delete") {
+            const deletedId = findId(oldData || {}) || segments[1] || req.body.id || "Unknown";
+            details = `Deleted ${resourceSegment}
+          (ID: ${deletedId})`;
+
+          } else {
+            details = `Performed ${action}\non ${req.originalUrl}`;
+          }
 
         Audit.create({
           user: username,
