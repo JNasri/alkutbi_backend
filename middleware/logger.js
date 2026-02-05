@@ -21,6 +21,7 @@ const idFields = [
   "collectingId",
   "voucherNumber",
   "assetId",
+  "username",
   "id",
   "_id",
 ];
@@ -36,6 +37,9 @@ const getDiff = (oldData, newData) => {
     "password",
     "id",
     "user",
+    "issuer",
+    "ticket",
+    "file" // Ignore file objects, we track fileUrl instead
   ];
 
   // Combine keys from both to be thorough
@@ -44,12 +48,16 @@ const getDiff = (oldData, newData) => {
   for (const key of allKeys) {
     if (ignoreFields.includes(key)) continue;
 
-    const oldVal = oldData[key];
-    const newVal = newData[key];
+    let oldVal = oldData[key];
+    let newVal = newData[key];
 
-    // Simple comparison for primitives
-    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-      diffs.push(`${key}: ${oldVal || "Empty"} -> ${newVal || "Empty"}`);
+    // Standardize empty values (null, undefined, empty string) to ""
+    const standardizedOld = oldVal === null || oldVal === undefined ? "" : String(oldVal).trim();
+    const standardizedNew = newVal === null || newVal === undefined ? "" : String(newVal).trim();
+
+    // Only record if they are actually different
+    if (standardizedOld !== standardizedNew) {
+      diffs.push(`${key}: ${standardizedOld || "Empty"} -> ${standardizedNew || "Empty"}`);
     }
   }
   return diffs.join(" | ");
@@ -111,15 +119,13 @@ const logger = async (req, res, next) => {
             const newData = (data && typeof data === 'object' && !data.message) ? data : { ...oldData, ...req.body };
             const diff = getDiff(oldData, newData);
             
-            // Using \n here for a cleaner single-line look in the code
-            details = diff 
-              ? `Updated ${resourceSegment}\n(ID: ${recordId}).\nChanged: ${diff}` 
-              : `Updated ${resourceSegment}\n(ID: ${recordId})`;
+            details = `Updated ${resourceSegment}
+          ID: ${recordId}${diff ? `\nChanged: ${diff}` : ""}`;
 
           } else if (action === "Delete") {
             const deletedId = findId(oldData || {}) || segments[1] || req.body.id || "Unknown";
             details = `Deleted ${resourceSegment}
-          (ID: ${deletedId})`;
+          ID: ${deletedId}`;
 
           } else {
             details = `Performed ${action}\non ${req.originalUrl}`;

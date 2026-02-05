@@ -34,8 +34,8 @@ app.use("/deathcases", verifyJWT, require("./routes/deathCaseRoutes")); // Logge
 app.use("/prisoncases", verifyJWT, require("./routes/prisonCaseRoutes")); // Logger moved inside router
 app.use("/assets", verifyJWT, logger, require("./routes/assetRoutes"));
 app.use("/logs", verifyJWT, logger, require("./routes/logRoutes"));
-app.use("/purchaseorders", verifyJWT, logger, require("./routes/purchaseOrderRoutes"));
-app.use("/collectionorders", verifyJWT, logger, require("./routes/collectionOrderRoutes"));
+app.use("/purchaseorders", verifyJWT, require("./routes/purchaseOrderRoutes"));
+app.use("/collectionorders", verifyJWT, require("./routes/collectionOrderRoutes"));
 
 // app listen + (err handler)
 app.use(errorHandler);

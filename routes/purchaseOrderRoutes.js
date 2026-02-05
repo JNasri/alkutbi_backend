@@ -3,11 +3,13 @@ const router = express.Router();
 const purchaseOrderController = require("../controllers/purchaseOrderController");
 const upload = require("../config/multer");
 
+const { logger } = require("../middleware/logger");
+
 router
   .route("/")
   .get(purchaseOrderController.getAllPurchaseOrders)
-  .post(upload.single("file"), purchaseOrderController.createNewPurchaseOrder)
-  .patch(upload.single("file"), purchaseOrderController.updatePurchaseOrder)
-  .delete(purchaseOrderController.deletePurchaseOrder);
+  .post(upload.single("file"), logger, purchaseOrderController.createNewPurchaseOrder)
+  .patch(upload.single("file"), logger, purchaseOrderController.updatePurchaseOrder)
+  .delete(logger, purchaseOrderController.deletePurchaseOrder);
 
 module.exports = router;
