@@ -44,10 +44,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     fileUrl = await uploadToS3(req.file);
   }
 
-  // Mandatory check for finalized status
-  if (status === "finalized" && !fileUrl) {
-    return res.status(400).json({ message: "Document upload is mandatory to finalize the order" });
-  }
+
 
   // Auto-generate collectingId if not provided
   if (!collectingId) {
@@ -180,10 +177,7 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
     fileUrl = await uploadToS3(req.file);
   }
 
-  // Mandatory check for finalized status
-  if (status === "finalized" && !fileUrl && !collectionOrder.fileUrl) {
-    return res.status(400).json({ message: "Document upload is mandatory to finalize the order" });
-  }
+
 
   if (status) collectionOrder.status = status;
   collectionOrder.dayName = dayName;

@@ -51,10 +51,6 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     fileUrl = await uploadToS3(req.file);
   }
 
-  // Mandatory check for finalized status
-  if (status === "finalized" && !fileUrl) {
-    return res.status(400).json({ message: "Document upload is mandatory to finalize the order" });
-  }
 
   // Auto-generate purchasingId if not provided
   if (!purchasingId) {
@@ -93,11 +89,6 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
-  }
-
-  // If payment method is bank_transfer or sadad, bank details are required
-  if ((paymentMethod === "bank_transfer" || paymentMethod === "sadad") && (!bankNameFrom || !ibanNumberFrom || !bankNameTo || !ibanNumberTo)) {
-    return res.status(400).json({ message: "All bank details (from and to) are required for this payment method" });
   }
 
   // Create and store the new purchase order
@@ -189,11 +180,6 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // If payment method is bank_transfer or sadad, bank details are required
-  if ((paymentMethod === "bank_transfer" || paymentMethod === "sadad") && (!bankNameFrom || !ibanNumberFrom || !bankNameTo || !ibanNumberTo)) {
-    return res.status(400).json({ message: "All bank details (from and to) are required for this payment method" });
-  }
-
   // Confirm purchase order exists to update
   const purchaseOrder = await PurchaseOrder.findById(id).exec();
 
@@ -207,10 +193,6 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
     fileUrl = await uploadToS3(req.file);
   }
 
-  // Mandatory check for finalized status
-  if (status === "finalized" && !fileUrl && !purchaseOrder.fileUrl) {
-    return res.status(400).json({ message: "Document upload is mandatory to finalize the order" });
-  }
 
   if (status) purchaseOrder.status = status;
   purchaseOrder.dayName = dayName;
