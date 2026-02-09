@@ -6,7 +6,7 @@ const collectionOrderSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["new", "audited", "authorized", "finalized"],
+      enum: ["new", "authorized", "finalized"],
       default: "new",
     },
     dayName: {
@@ -24,6 +24,7 @@ const collectionOrderSchema = new mongoose.Schema(
     collectingId: {
       type: String,
       required: true,
+      unique: true,
     },
     collectMethod: {
       type: String,

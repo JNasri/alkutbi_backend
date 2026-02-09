@@ -6,7 +6,7 @@ const purchaseOrderSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["new", "audited", "authorized", "finalized"],
+      enum: ["new", "authorized", "finalized"],
       default: "new",
     },
     dayName: {
@@ -24,6 +24,7 @@ const purchaseOrderSchema = new mongoose.Schema(
     purchasingId: {
       type: String,
       required: true,
+      unique: true,
     },
     paymentMethod: {
       type: String,

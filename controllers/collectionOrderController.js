@@ -2,6 +2,7 @@ const CollectionOrder = require("../models/CollectionOrder");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
 const { uploadToS3 } = require("../config/uploadToS3");
+const generateCollectionOrderId = require("../utils/generateCollectionOrderId");
 
 // @desc Get all collection orders
 // @route GET /collectionorders
@@ -48,20 +49,13 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
 
   // Auto-generate collectingId if not provided
   if (!collectingId) {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2); // Last 2 digits of year
-    const month = String(now.getMonth() + 1).padStart(2, "0"); // Month with leading zero
-    
-    // Count existing orders for this month
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    
-    const count = await CollectionOrder.countDocuments({
-      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-    });
-    
-    const orderNumber = String(count + 1).padStart(3, "0");
-    collectingId = `CO-${year}-${month}-${orderNumber}`;
+    collectingId = await generateCollectionOrderId();
+  }
+
+  // Double check uniqueness for collectingId
+  const duplicateId = await CollectionOrder.findOne({ collectingId }).lean().exec();
+  if (duplicateId) {
+    return res.status(409).json({ message: "Duplicate collecting ID. Please try again." });
   }
 
   // Confirm data - only status, dates, dayName, and collectingId are required
@@ -79,7 +73,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
 
   // Validate status if provided
   if (status) {
-    const validStatuses = ["new", "audited", "authorized", "finalized"];
+    const validStatuses = ["new", "authorized", "finalized"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
@@ -156,7 +150,7 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
 
   // Validate status if provided
   if (status) {
-    const validStatuses = ["new", "audited", "authorized", "finalized"];
+    const validStatuses = ["new", "authorized", "finalized"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }

@@ -2,6 +2,7 @@ const PurchaseOrder = require("../models/PurchaseOrder");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
 const { uploadToS3 } = require("../config/uploadToS3");
+const generatePurchaseOrderId = require("../utils/generatePurchaseOrderId");
 
 // @desc Get all purchase orders
 // @route GET /purchaseorders
@@ -54,20 +55,13 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
 
   // Auto-generate purchasingId if not provided
   if (!purchasingId) {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2); // Last 2 digits of year
-    const month = String(now.getMonth() + 1).padStart(2, "0"); // Month with leading zero
-    
-    // Count existing orders for this month
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    
-    const count = await PurchaseOrder.countDocuments({
-      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-    });
-    
-    const orderNumber = String(count + 1).padStart(3, "0");
-    purchasingId = `PO-${year}-${month}-${orderNumber}`;
+    purchasingId = await generatePurchaseOrderId();
+  }
+
+  // Double check uniqueness for purchasingId
+  const duplicateId = await PurchaseOrder.findOne({ purchasingId }).lean().exec();
+  if (duplicateId) {
+    return res.status(409).json({ message: "Duplicate purchasing ID. Please try again." });
   }
 
   // Confirm data - only status, dates, dayName, and purchasingId are required
@@ -85,7 +79,7 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
 
   // Validate status if provided
   if (status) {
-    const validStatuses = ["new", "audited", "authorized", "finalized"];
+    const validStatuses = ["new", "authorized", "finalized"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
@@ -174,7 +168,7 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
 
   // Validate status if provided
   if (status) {
-    const validStatuses = ["new", "audited", "authorized", "finalized"];
+    const validStatuses = ["new", "authorized", "finalized"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
