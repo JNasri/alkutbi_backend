@@ -8,8 +8,22 @@ const { logger } = require("../middleware/logger");
 router
   .route("/")
   .get(collectionOrderController.getAllCollectionOrders)
-  .post(upload.single("file"), logger, collectionOrderController.createNewCollectionOrder)
-  .patch(upload.single("file"), logger, collectionOrderController.updateCollectionOrder)
+  .post(
+    upload.fields([
+      { name: "receipt", maxCount: 1 },
+      { name: "orderPrint", maxCount: 1 },
+    ]),
+    logger,
+    collectionOrderController.createNewCollectionOrder
+  )
+  .patch(
+    upload.fields([
+      { name: "receipt", maxCount: 1 },
+      { name: "orderPrint", maxCount: 1 },
+    ]),
+    logger,
+    collectionOrderController.updateCollectionOrder
+  )
   .delete(logger, collectionOrderController.deleteCollectionOrder);
 
 module.exports = router;

@@ -44,12 +44,20 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     totalAmountText,
     deductedFrom,
     addedTo,
+    notes,
   } = req.body;
 
-  // Handle file upload to S3 if file exists
-  let fileUrl = "";
-  if (req.file) {
-    fileUrl = await uploadToS3(req.file);
+  // Handle file upload to S3 if files exist
+  let receiptUrl = "";
+  let orderPrintUrl = "";
+
+  if (req.files) {
+    if (req.files.receipt && req.files.receipt[0]) {
+      receiptUrl = await uploadToS3(req.files.receipt[0]);
+    }
+    if (req.files.orderPrint && req.files.orderPrint[0]) {
+      orderPrintUrl = await uploadToS3(req.files.orderPrint[0]);
+    }
   }
 
 
@@ -108,7 +116,9 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     deductedFrom: deductedFrom || "",
     addedTo: addedTo || "",
     issuer: req.userId || null,
-    fileUrl: fileUrl || "",
+    receiptUrl: receiptUrl || "",
+    orderPrintUrl: orderPrintUrl || "",
+    notes: notes || "",
   });
 
   if (purchaseOrder) {
@@ -144,6 +154,7 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
     totalAmountText,
     deductedFrom,
     addedTo,
+    notes,
   } = req.body;
 
   // Confirm data - only status, dates, dayName, and purchasingId are required
@@ -181,10 +192,17 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Purchase order not found" });
   }
 
-  // Handle file upload to S3 if file exists
-  let fileUrl = "";
-  if (req.file) {
-    fileUrl = await uploadToS3(req.file);
+  // Handle file upload to S3 if files exist
+  let receiptUrl = "";
+  let orderPrintUrl = "";
+
+  if (req.files) {
+    if (req.files.receipt && req.files.receipt[0]) {
+      receiptUrl = await uploadToS3(req.files.receipt[0]);
+    }
+    if (req.files.orderPrint && req.files.orderPrint[0]) {
+      orderPrintUrl = await uploadToS3(req.files.orderPrint[0]);
+    }
   }
 
 
@@ -208,7 +226,10 @@ const updatePurchaseOrder = asyncHandler(async (req, res) => {
   purchaseOrder.totalAmountText = totalAmountText;
   purchaseOrder.deductedFrom = deductedFrom;
   purchaseOrder.addedTo = addedTo;
-  if (fileUrl) purchaseOrder.fileUrl = fileUrl;
+  purchaseOrder.notes = notes || "";
+
+  if (receiptUrl) purchaseOrder.receiptUrl = receiptUrl;
+  if (orderPrintUrl) purchaseOrder.orderPrintUrl = orderPrintUrl;
 
   const updatedPurchaseOrder = await purchaseOrder.save();
 

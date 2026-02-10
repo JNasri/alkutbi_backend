@@ -70,7 +70,15 @@ const collectionOrderSchema = new mongoose.Schema(
       required: false,
       ref: "User",
     },
-    fileUrl: {
+    receiptUrl: {
+      type: String,
+      default: "",
+    },
+    orderPrintUrl: {
+      type: String,
+      default: "",
+    },
+    notes: {
       type: String,
       default: "",
     },

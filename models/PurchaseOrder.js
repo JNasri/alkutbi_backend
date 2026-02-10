@@ -59,7 +59,7 @@ const purchaseOrderSchema = new mongoose.Schema(
     transactionType: {
       type: String,
       required: false,
-      enum: ["expenses", "receivables", "custody", "advance", ""],
+      enum: ["expenses", "receivables", "custody", "advance", "payments", ""],
       default: "",
     },
     managementName: {
@@ -102,7 +102,15 @@ const purchaseOrderSchema = new mongoose.Schema(
       required: false,
       ref: "User",
     },
-    fileUrl: {
+    receiptUrl: {
+      type: String,
+      default: "",
+    },
+    orderPrintUrl: {
+      type: String,
+      default: "",
+    },
+    notes: {
       type: String,
       default: "",
     },
