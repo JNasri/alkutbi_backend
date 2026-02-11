@@ -8,15 +8,22 @@ async function generateOutgoingId() {
   const dd = String(now.getDate()).padStart(2, "0");
   const datePrefix = "S-" + yy + mm + dd;
 
-  const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+  // Find the last record created today with this prefix to ensure unique sequence
+  const lastRecord = await Outgoing.findOne({
+    identifier: { $regex: `^${datePrefix}` }
+  }).sort({ identifier: -1 });
 
-  const count = await Outgoing.countDocuments({
-    createdAt: { $gte: startOfDay, $lte: endOfDay },
-  });
+  let nextNumber = 1;
+  if (lastRecord && lastRecord.identifier) {
+    const lastNumberStr = lastRecord.identifier.replace(datePrefix, "");
+    const lastNumber = parseInt(lastNumberStr, 10);
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1;
+    }
+  }
 
-  const number = String(count + 1).padStart(3, "0");
-  return datePrefix + number; // e.g., 250613001
+  const number = String(nextNumber).padStart(3, "0");
+  return datePrefix + number; 
 }
 
 module.exports = generateOutgoingId;

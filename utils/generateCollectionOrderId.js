@@ -8,14 +8,21 @@ async function generateCollectionOrderId() {
   const dd = String(now.getDate()).padStart(2, "0");
   const datePrefix = "CO-" + yy + mm + dd;
 
-  const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+  // Find the last order created today with this prefix to ensure unique sequence
+  const lastOrder = await CollectionOrder.findOne({
+    collectingId: { $regex: `^${datePrefix}` }
+  }).sort({ collectingId: -1 });
 
-  const count = await CollectionOrder.countDocuments({
-    createdAt: { $gte: startOfDay, $lte: endOfDay },
-  });
+  let nextNumber = 1;
+  if (lastOrder && lastOrder.collectingId) {
+    const lastNumberStr = lastOrder.collectingId.replace(datePrefix, "");
+    const lastNumber = parseInt(lastNumberStr, 10);
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1;
+    }
+  }
 
-  const number = String(count + 1).padStart(3, "0");
+  const number = String(nextNumber).padStart(3, "0");
   return datePrefix + number; 
 }
 

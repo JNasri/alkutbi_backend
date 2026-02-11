@@ -4,20 +4,27 @@ const DeathCase = require("../models/DeathCase");
 async function generateDeathId() {
   const now = new Date();
   
-    const yy = now.getFullYear().toString().slice(-2);
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const datePrefix = "D-" + yy + mm + dd;
-  
-    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(now.setHours(23, 59, 59, 999));
-  
-    const count = await DeathCase.countDocuments({
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
-    });
-  
-    const number = String(count + 1).padStart(3, "0");
-    return datePrefix + number; 
+  const yy = now.getFullYear().toString().slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const datePrefix = "D-" + yy + mm + dd;
+
+  // Find the last record created today with this prefix to ensure unique sequence
+  const lastRecord = await DeathCase.findOne({
+    identifier: { $regex: `^${datePrefix}` }
+  }).sort({ identifier: -1 });
+
+  let nextNumber = 1;
+  if (lastRecord && lastRecord.identifier) {
+    const lastNumberStr = lastRecord.identifier.replace(datePrefix, "");
+    const lastNumber = parseInt(lastNumberStr, 10);
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1;
+    }
+  }
+
+  const number = String(nextNumber).padStart(3, "0");
+  return datePrefix + number; 
 }
 
 module.exports = generateDeathId;
