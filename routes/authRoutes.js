@@ -10,5 +10,7 @@ router.route('/refresh').get(authController.refresh)
 
 router.route('/logout').post(authController.logout)
 
+router.route('/forgot-password').post(authController.forgotPassword)
+router.route('/reset-password/:resetToken').put(authController.resetPassword)
 
 module.exports = router

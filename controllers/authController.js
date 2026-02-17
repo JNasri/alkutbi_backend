@@ -171,8 +171,112 @@ const logout = (req, res) => {
   res.json({ message: "Cookie cleared" });
 };
 
+// @desc Forgot Password
+// @route POST /auth/forgot-password
+// @access Public
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return res.status(404).json({ message: "Email not registered" });
+  }
+
+  // Generate Reset Token
+  const crypto = require("crypto");
+  const resetToken = crypto.randomBytes(20).toString("hex");
+
+  // Hash it and set to resetPasswordToken field
+  user.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  // Set expire (e.g., 10 minutes)
+  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+  await user.save();
+
+  const resetUrl = `${req.protocol}://${req.get(
+    "host"
+  )}/reset-password/${resetToken}`;
+  // NOTE: For local dev with separate frontend port (5173), we might need to hardcode frontend URL or use env
+  // Assuming frontend is separate:
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const message = `أنت تتلقى هذا البريد الإلكتروني لأنك طلبت إعادة تعيين كلمة المرور. يرجى الضغط على الرابط التالي: \n\n ${frontendUrl}/reset-password/${resetToken}`;
+
+  try {
+    const sendEmail = require("../utils/sendEmail");
+    await sendEmail({
+      email: user.email,
+      subject: "طلب إعادة تعيين كلمة المرور",
+      message,
+      html: `
+        <div dir="rtl" style="text-align: right;">
+          <p>يرجى النقر على الرابط أدناه لإعادة تعيين كلمة المرور الخاصة بك:</p>
+          <a href="${frontendUrl}/reset-password/${resetToken}" clicktracking=off>${frontendUrl}/reset-password/${resetToken}</a>
+        </div>
+      `,
+    });
+
+    res.status(200).json({ success: true, data: "Email sent" });
+  } catch (err) {
+    console.error(err);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+    return res.status(500).json({ message: "Email could not be sent" });
+  }
+});
+
+// @desc Reset Password
+// @route PUT /auth/reset-password/:resetToken
+// @access Public
+const resetPassword = asyncHandler(async (req, res) => {
+  const crypto = require("crypto");
+  // Get hashed token
+  const resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(req.params.resetToken)
+    .digest("hex");
+
+  const user = await User.findOne({
+    resetPasswordToken,
+    resetPasswordExpire: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return res.status(400).json({ message: "Invalid token" });
+  }
+
+  // Set new password
+  const { password } = req.body;
+  if (!password) {
+      return res.status(400).json({ message: "Please provide a new password" });
+  }
+
+  // Hash new password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  user.password = hashedPassword;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpire = undefined;
+  await user.save();
+
+  res.status(200).json({ success: true, data: "Password updated successfully" });
+});
+
+
 module.exports = {
   login,
   refresh,
   logout,
+  forgotPassword,
+  resetPassword
 };

@@ -26,4 +26,6 @@ router
   )
   .delete(logger, purchaseOrderController.deletePurchaseOrder);
 
+router.post("/bulk", logger, purchaseOrderController.createBulkPurchaseOrders);
+
 module.exports = router;

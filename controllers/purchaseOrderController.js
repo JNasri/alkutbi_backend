@@ -260,10 +260,80 @@ const deletePurchaseOrder = asyncHandler(async (req, res) => {
 
   res.json(reply);
 });
+// @desc Create multiple purchase orders
+// @route POST /purchaseorders/bulk
+// @access Private
+const createBulkPurchaseOrders = asyncHandler(async (req, res) => {
+  const { orders } = req.body;
+
+  if (!orders || !Array.isArray(orders) || orders.length === 0) {
+    return res.status(400).json({ message: "No purchase orders provided" });
+  }
+
+  const issuer = req.userId || null;
+  const now = new Date();
+  const yy = now.getFullYear().toString().slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const datePrefix = "PO-" + yy + mm + dd;
+
+  // Find the last order created today with this prefix
+  const lastOrder = await PurchaseOrder.findOne({
+    purchasingId: { $regex: `^${datePrefix}` }
+  }).sort({ purchasingId: -1 });
+
+  let nextNumber = 1;
+  if (lastOrder && lastOrder.purchasingId) {
+    const lastNumberStr = lastOrder.purchasingId.replace(datePrefix, "");
+    const lastNumber = parseInt(lastNumberStr, 10);
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1;
+    }
+  }
+
+  const purchaseOrdersToCreate = orders.map((orderData, index) => {
+    const sequence = String(nextNumber + index).padStart(3, "0");
+    const purchasingId = datePrefix + sequence;
+    
+    return {
+      status: orderData.status || "new",
+      dayName: orderData.dayName,
+      dateHijri: orderData.dateHijri,
+      dateAD: orderData.dateAD,
+      purchasingId,
+      paymentMethod: orderData.paymentMethod || "cash",
+      transactionType: orderData.transactionType || "expenses",
+      item: orderData.item || "",
+      totalAmount: orderData.totalAmount || 0,
+      totalAmountText: orderData.totalAmountText || "",
+      notes: orderData.notes || "",
+      issuer,
+      bankName: "",
+      ibanNumber: "",
+      bankNameFrom: "",
+      ibanNumberFrom: "",
+      bankNameTo: "",
+      ibanNumberTo: "",
+      managementName: "",
+      supplier: "",
+      deductedFrom: "",
+      addedTo: "",
+      receiptUrl: "",
+      orderPrintUrl: "",
+    };
+  });
+
+  const savedOrders = await PurchaseOrder.insertMany(purchaseOrdersToCreate);
+
+  res.status(201).json({
+    message: `${savedOrders.length} purchase orders created successfully`,
+  });
+});
 
 module.exports = {
   getAllPurchaseOrders,
   createNewPurchaseOrder,
+  createBulkPurchaseOrders,
   updatePurchaseOrder,
   deletePurchaseOrder,
 };
