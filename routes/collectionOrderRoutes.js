@@ -26,4 +26,6 @@ router
   )
   .delete(logger, collectionOrderController.deleteCollectionOrder);
 
+router.route("/bulk").post(collectionOrderController.createBulkCollectionOrders);
+
 module.exports = router;

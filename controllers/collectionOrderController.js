@@ -239,9 +239,73 @@ const deleteCollectionOrder = asyncHandler(async (req, res) => {
   res.json(reply);
 });
 
+// @desc Create multiple collection orders
+// @route POST /collectionorders/bulk
+// @access Private
+const createBulkCollectionOrders = asyncHandler(async (req, res) => {
+  const { orders } = req.body;
+
+  if (!orders || !Array.isArray(orders) || orders.length === 0) {
+    return res.status(400).json({ message: "No collection orders provided" });
+  }
+
+  const issuer = req.userId || null;
+  const now = new Date();
+  const yy = now.getFullYear().toString().slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const datePrefix = "CO-" + yy + mm + dd;
+
+  // Find the last order created today with this prefix
+  const lastOrder = await CollectionOrder.findOne({
+    collectingId: { $regex: `^${datePrefix}` }
+  }).sort({ collectingId: -1 });
+
+  let nextNumber = 1;
+  if (lastOrder && lastOrder.collectingId) {
+    const lastNumberStr = lastOrder.collectingId.replace(datePrefix, "");
+    const lastNumber = parseInt(lastNumberStr, 10);
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1;
+    }
+  }
+
+  const collectionOrdersToCreate = orders.map((orderData, index) => {
+    const sequence = String(nextNumber + index).padStart(3, "0");
+    const collectingId = datePrefix + sequence;
+    
+    return {
+      status: orderData.status || "new",
+      dayName: orderData.dayName,
+      dateHijri: orderData.dateHijri,
+      dateAD: orderData.dateAD,
+      collectingId,
+      collectMethod: orderData.collectMethod || "cash",
+      collectedFrom: orderData.collectedFrom || "umrah",
+      totalAmount: orderData.totalAmount || 0,
+      totalAmountText: orderData.totalAmountText || "",
+      notes: orderData.notes || "",
+      issuer,
+      voucherNumber: "",
+      receivingBankName: "",
+      deductedFrom: "",
+      addedTo: "",
+      receiptUrl: "",
+      orderPrintUrl: "",
+    };
+  });
+
+  const savedOrders = await CollectionOrder.insertMany(collectionOrdersToCreate);
+
+  res.status(201).json({
+    message: `${savedOrders.length} collection orders created successfully`,
+  });
+});
+
 module.exports = {
   getAllCollectionOrders,
   createNewCollectionOrder,
+  createBulkCollectionOrders,
   updateCollectionOrder,
   deleteCollectionOrder,
 };
