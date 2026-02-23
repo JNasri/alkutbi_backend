@@ -2,10 +2,12 @@ const CollectionOrder = require("../models/CollectionOrder");
 
 async function generateCollectionOrderId() {
   const now = new Date();
+  const ksaOffset = 3 * 60 * 60 * 1000;
+  const ksaTime = new Date(now.getTime() + ksaOffset);
 
-  const yy = now.getFullYear().toString().slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
+  const yy = ksaTime.getUTCFullYear().toString().slice(-2);
+  const mm = String(ksaTime.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(ksaTime.getUTCDate()).padStart(2, "0");
   const datePrefix = "CO-" + yy + mm + dd;
 
   // Find the last order created today with this prefix to ensure unique sequence
