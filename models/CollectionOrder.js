@@ -36,6 +36,11 @@ const collectionOrderSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    item: {
+      type: String,
+      required: false,
+      default: "",
+    },
     receivingBankName: {
       type: String,
       default: "",

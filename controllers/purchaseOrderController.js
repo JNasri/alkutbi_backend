@@ -3,6 +3,8 @@ const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
 const { uploadToS3 } = require("../config/uploadToS3");
 const generatePurchaseOrderId = require("../utils/generatePurchaseOrderId");
+const duplicateCheck = require("../utils/duplicateCheck");
+const purchaseOrderDuplicateConfig = require("../config/checkDuplicatePurchase");
 
 // @desc Get all purchase orders
 // @route GET /purchaseorders
@@ -45,6 +47,7 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
     deductedFrom,
     addedTo,
     notes,
+    ignoreDuplicate,
   } = req.body;
 
   // Handle file upload to S3 if files exist
@@ -75,6 +78,38 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
   // Confirm data - only status, dates, dayName, and purchasingId are required
   if (!status || !dayName || !dateHijri || !dateAD || !purchasingId) {
     return res.status(400).json({ message: "Status, day name, dates, and purchasing ID are required" });
+  }
+
+  // Check for duplicate data on the same day if not ignored
+  if (ignoreDuplicate !== "true" && ignoreDuplicate !== true) {
+    const duplicates = await duplicateCheck(PurchaseOrder, {
+      status,
+      dayName,
+      dateHijri,
+      dateAD,
+      paymentMethod,
+      bankName,
+      ibanNumber,
+      bankNameFrom,
+      ibanNumberFrom,
+      bankNameTo,
+      ibanNumberTo,
+      transactionType,
+      managementName,
+      supplier,
+      item,
+      totalAmount,
+      totalAmountText,
+      deductedFrom,
+      addedTo,
+      notes,
+    }, purchaseOrderDuplicateConfig);
+
+    if (duplicates.length > 0) {
+      return res.status(409).json({
+        duplicates: duplicates
+      });
+    }
   }
 
   // Validate payment method if provided

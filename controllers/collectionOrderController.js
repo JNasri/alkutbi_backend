@@ -3,6 +3,8 @@ const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
 const { uploadToS3 } = require("../config/uploadToS3");
 const generateCollectionOrderId = require("../utils/generateCollectionOrderId");
+const duplicateCheck = require("../utils/duplicateCheck");
+const collectionOrderDuplicateConfig = require("../config/checkDuplicateCollection");
 
 // @desc Get all collection orders
 // @route GET /collectionorders
@@ -31,6 +33,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     collectingId,
     collectMethod,
     voucherNumber,
+    item,
     receivingBankName,
     collectedFrom,
     totalAmount,
@@ -38,6 +41,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     deductedFrom,
     addedTo,
     notes,
+    ignoreDuplicate,
   } = req.body;
 
   // Handle file upload to S3 if files exist
@@ -71,6 +75,32 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Status, day name, dates, and collecting ID are required" });
   }
 
+  // Check for duplicate data on the same day if not ignored
+  if (ignoreDuplicate !== "true" && ignoreDuplicate !== true) {
+    const duplicates = await duplicateCheck(CollectionOrder, {
+      status,
+      dayName,
+      dateHijri,
+      dateAD,
+      collectMethod,
+      voucherNumber,
+      item,
+      receivingBankName,
+      collectedFrom,
+      totalAmount,
+      totalAmountText,
+      deductedFrom,
+      addedTo,
+      notes,
+    }, collectionOrderDuplicateConfig);
+
+    if (duplicates.length > 0) {
+      return res.status(409).json({
+        duplicates: duplicates
+      });
+    }
+  }
+
   // Validate collect method if provided
   if (collectMethod) {
     const validCollectMethods = ["cash", "bank_transfer"];
@@ -98,6 +128,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     collectingId,
     collectMethod: collectMethod || "",
     voucherNumber: voucherNumber || "",
+    item: item || "",
     receivingBankName: receivingBankName || "",
     collectedFrom: collectedFrom || "",
     totalAmount: totalAmount || 0,
@@ -130,6 +161,7 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
     collectingId,
     collectMethod,
     voucherNumber,
+    item,
     receivingBankName,
     collectedFrom,
     totalAmount,
@@ -198,6 +230,7 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
   collectionOrder.collectingId = collectingId;
   collectionOrder.collectMethod = collectMethod;
   collectionOrder.voucherNumber = voucherNumber || "";
+  collectionOrder.item = item || "";
   collectionOrder.receivingBankName = receivingBankName || "";
   collectionOrder.collectedFrom = collectedFrom;
   collectionOrder.totalAmount = totalAmount;
@@ -286,7 +319,8 @@ const createBulkCollectionOrders = asyncHandler(async (req, res) => {
       totalAmountText: orderData.totalAmountText || "",
       notes: orderData.notes || "",
       issuer,
-      voucherNumber: "",
+      voucherNumber: orderData.voucherNumber || "",
+      item: orderData.item || "",
       receivingBankName: "",
       deductedFrom: "",
       addedTo: "",
