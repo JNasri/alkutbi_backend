@@ -3,6 +3,11 @@ const router = express.Router();
 const upload = require("../middleware/uploadMiddleware");
 const deathCaseController = require("../controllers/deathCaseController");
 const { logger } = require("../middleware/logger");
+const verifyRoles = require("../middleware/verifyRoles");
+const ROLES = require("../config/roles");
+
+const canAdd = [ROLES.Admin, ROLES.Special_Papers_Manager, ROLES.Special_Papers_Employee];
+const canEdit = [ROLES.Admin, ROLES.Special_Papers_Manager];
 
 // Multiple attachments (10 fields max)
 const attachmentFields = [
@@ -21,11 +26,10 @@ const attachmentFields = [
 router
   .route("/")
   .get(deathCaseController.getAllDeathCases)
-  .post(upload.fields(attachmentFields), logger, deathCaseController.createDeathCase)
-  .patch(upload.fields(attachmentFields), logger, deathCaseController.updateDeathCase)
-  .delete(logger, deathCaseController.deleteDeathCase);
+  .post(verifyRoles(...canAdd), upload.fields(attachmentFields), logger, deathCaseController.createDeathCase)
+  .patch(verifyRoles(...canEdit), upload.fields(attachmentFields), logger, deathCaseController.updateDeathCase)
+  .delete(verifyRoles(...canEdit), logger, deathCaseController.deleteDeathCase);
 
-// Route for /deathcases/:id
 router.route("/:id").get(deathCaseController.getDeathCaseById);
 
 module.exports = router;

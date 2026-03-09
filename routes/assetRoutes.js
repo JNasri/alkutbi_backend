@@ -1,16 +1,24 @@
 const express = require("express");
 const router = express.Router();
 const assetController = require("../controllers/assetController");
+const verifyRoles = require("../middleware/verifyRoles");
+const ROLES = require("../config/roles");
 
-// Route for /assets - all main methods chained
+const canAccess = [
+  ROLES.Admin,
+  ROLES.Operation_Manager,
+  ROLES.Operation_Employee,
+  ROLES.Special_Papers_Manager,
+  ROLES.Special_Papers_Employee,
+];
+
 router
   .route("/")
-  .get(assetController.getAllAssets) // GET /assets
-  .post(assetController.createAsset) // POST /assets
-  .patch(assetController.updateAsset) // PATCH /assets (update with id in body)
-  .delete(assetController.deleteAsset); // DELETE /assets (delete with id in body)
+  .get(verifyRoles(...canAccess), assetController.getAllAssets)
+  .post(verifyRoles(...canAccess), assetController.createAsset)
+  .patch(verifyRoles(...canAccess), assetController.updateAsset)
+  .delete(verifyRoles(...canAccess), assetController.deleteAsset);
 
-// Route for /assets/:id - only GET by ID
-router.route("/:id").get(assetController.getAssetById);
+router.route("/:id").get(verifyRoles(...canAccess), assetController.getAssetById);
 
 module.exports = router;

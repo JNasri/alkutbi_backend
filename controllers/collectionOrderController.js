@@ -2,6 +2,8 @@ const CollectionOrder = require("../models/CollectionOrder");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
 const { uploadToS3 } = require("../config/uploadToS3");
+const { getS3SignedUrl } = require("../config/getSignedUrl");
+const MAIN_BUCKET = process.env.S3_BUCKET_NAME;
 const generateCollectionOrderId = require("../utils/generateCollectionOrderId");
 const duplicateCheck = require("../utils/duplicateCheck");
 const collectionOrderDuplicateConfig = require("../config/checkDuplicateCollection");
@@ -18,7 +20,15 @@ const getAllCollectionOrders = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "No collection orders found" });
   }
 
-  res.json(collectionOrders);
+  const result = await Promise.all(
+    collectionOrders.map(async (item) => ({
+      ...item,
+      receiptUrl: await getS3SignedUrl(MAIN_BUCKET, item.receiptUrl),
+      orderPrintUrl: await getS3SignedUrl(MAIN_BUCKET, item.orderPrintUrl),
+    }))
+  );
+
+  res.json(result);
 });
 
 // @desc Create new collection order

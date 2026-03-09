@@ -1,6 +1,8 @@
 const Voucher = require("../models/Voucher");
 const asyncHandler = require("express-async-handler");
 const { uploadToS3 } = require("../config/uploadToS3");
+const { getS3SignedUrl } = require("../config/getSignedUrl");
+const MAIN_BUCKET = process.env.S3_BUCKET_NAME;
 
 // @desc Get all vouchers
 // @route GET /vouchers
@@ -10,7 +12,13 @@ const getAllVouchers = asyncHandler(async (req, res) => {
   if (!vouchers?.length) {
     return res.status(400).json({ message: "No vouchers found" });
   }
-  res.json(vouchers);
+  const result = await Promise.all(
+    vouchers.map(async (item) => ({
+      ...item,
+      fileUrl: await getS3SignedUrl(MAIN_BUCKET, item.fileUrl),
+    }))
+  );
+  res.json(result);
 });
 
 // @desc Create new voucher
@@ -163,12 +171,11 @@ const deleteVoucher = asyncHandler(async (req, res) => {
 // @access Private
 const getVoucherById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
-  const voucher = await Voucher.findById(id);
+  const voucher = await Voucher.findById(id).lean();
   if (!voucher) {
     return res.status(404).json({ message: "Voucher not found" });
   }
-
+  voucher.fileUrl = await getS3SignedUrl(MAIN_BUCKET, voucher.fileUrl);
   res.status(200).json(voucher);
 });
 

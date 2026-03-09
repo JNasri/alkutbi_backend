@@ -3,6 +3,9 @@ const asyncHandler = require("express-async-handler");
 const generatePrisonId = require("../utils/generatePrisonId.js"); // Ensure this utility exists
 const s3 = require("../config/s3");
 const { PutObjectCommand } = require("@aws-sdk/client-s3");
+const { getS3SignedUrl } = require("../config/getSignedUrl");
+const ATTA_BUCKET = process.env.S3_BUCKET_NAME_ATTA;
+const PRISON_ATTACHMENT_FIELDS = ["passportAttachment", "visaAttachment"];
 
 // @desc Get all prison cases
 // @route GET /prisoncases
@@ -10,7 +13,18 @@ const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const getAllPrisonCases = asyncHandler(async (req, res) => {
   const cases = await PrisonCase.find().lean();
   if (!cases?.length) return res.status(200).json([]);
-  res.status(200).json(cases);
+  const result = await Promise.all(
+    cases.map(async (item) => {
+      const signed = {};
+      for (const field of PRISON_ATTACHMENT_FIELDS) {
+        if (item[field]) {
+          signed[field] = await getS3SignedUrl(ATTA_BUCKET, item[field]);
+        }
+      }
+      return { ...item, ...signed };
+    })
+  );
+  res.status(200).json(result);
 });
 
 // @desc Get a prison case by ID
@@ -18,9 +32,14 @@ const getAllPrisonCases = asyncHandler(async (req, res) => {
 // @access Private
 const getPrisonCaseById = asyncHandler(async (req, res) => {
   try {
-    const prisonCase = await PrisonCase.findById(req.params.id);
+    const prisonCase = await PrisonCase.findById(req.params.id).lean();
     if (!prisonCase) {
       return res.status(404).json({ message: "Prison case not found" });
+    }
+    for (const field of PRISON_ATTACHMENT_FIELDS) {
+      if (prisonCase[field]) {
+        prisonCase[field] = await getS3SignedUrl(ATTA_BUCKET, prisonCase[field]);
+      }
     }
     res.json(prisonCase);
   } catch (error) {
@@ -68,10 +87,9 @@ const createPrisonCase = asyncHandler(async (req, res) => {
           Key: s3Key,
           Body: file.buffer,
           ContentType: file.mimetype,
-          ACL: "public-read",
         };
         await s3.send(new PutObjectCommand(uploadParams));
-        attachments[field] = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
+        attachments[field] = s3Key;
       }
     }
   }
@@ -178,10 +196,9 @@ const updatePrisonCase = asyncHandler(async (req, res) => {
           Key: s3Key,
           Body: file.buffer,
           ContentType: file.mimetype,
-          ACL: "public-read",
         };
         await s3.send(new PutObjectCommand(uploadParams));
-        prisonCase[field] = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}?v=${Date.now()}`;
+        prisonCase[field] = s3Key;
       }
     }
   }

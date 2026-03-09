@@ -5,6 +5,8 @@ const asyncHandler = require("express-async-handler");
 const generateIncomingId = require("../utils/generateIncomingId.js");
 const s3 = require("../config/s3");
 const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { getS3SignedUrl } = require("../config/getSignedUrl");
+const ATTA_BUCKET = process.env.S3_BUCKET_NAME_ATTA;
 
 // @desc Get all incoming
 // @route GET /incoming
@@ -12,10 +14,15 @@ const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const getAllIncomings = asyncHandler(async (req, res) => {
   const incoming = await Incoming.find().lean();
   if (!incoming?.length) {
-    return res.status(200).json([]); // ✅ Don't send 400
+    return res.status(200).json([]);
   }
-  // return incoming with status 200
-  res.status(200).json(incoming);
+  const result = await Promise.all(
+    incoming.map(async (item) => ({
+      ...item,
+      attachment: await getS3SignedUrl(ATTA_BUCKET, item.attachment),
+    }))
+  );
+  res.status(200).json(result);
 });
 
 // @desc    Get a single incoming by ID
@@ -23,12 +30,11 @@ const getAllIncomings = asyncHandler(async (req, res) => {
 // @access  Private (or Public, based on your auth setup)
 const getIncomingById = async (req, res) => {
   try {
-    const incoming = await Incoming.findById(req.params.id);
-
+    const incoming = await Incoming.findById(req.params.id).lean();
     if (!incoming) {
       return res.status(404).json({ message: "Incoming not found" });
     }
-
+    incoming.attachment = await getS3SignedUrl(ATTA_BUCKET, incoming.attachment);
     res.json(incoming);
   } catch (error) {
     console.error("Error fetching incoming:", error);
@@ -58,11 +64,9 @@ const createNewIncoming = asyncHandler(async (req, res) => {
     Key: s3Key,
     Body: attachment.buffer,
     ContentType: attachment.mimetype,
-    ACL: "public-read", // ✅ allows public access
   };
 
   await s3.send(new PutObjectCommand(uploadParams));
-  const s3Url = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
 
   // Confirm data
   if (!to || !from || !date || !newId || !incomingType || !["internal", "external"].includes(incomingType)) {
@@ -80,7 +84,7 @@ const createNewIncoming = asyncHandler(async (req, res) => {
     borderNumber,
     letterNumber,
     incomingType,
-    attachment: s3Url, // store the file URL
+    attachment: s3Key, // store the S3 key
   });
 
   if (incoming) {
@@ -148,14 +152,10 @@ const updateIncoming = asyncHandler(async (req, res) => {
       Key: s3Key,
       Body: req.file.buffer,
       ContentType: req.file.mimetype,
-      ACL: "public-read",
     };
 
     await s3.send(new PutObjectCommand(uploadParams));
-    const s3Url = `https://${bucketName}.s3.${
-      process.env.AWS_REGION
-    }.amazonaws.com/${s3Key}?v=${Date.now()}`;
-    incoming.attachment = s3Url;
+    incoming.attachment = s3Key;
   } else if (removeAttachment === "true") {
     console.log("Removing attachment URL as requested");
     // Remove attachment URL if flag sent

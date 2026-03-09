@@ -3,6 +3,13 @@ const asyncHandler = require("express-async-handler");
 const generateDeathId = require("../utils/generateDeathId.js"); // reuse your ID util
 const s3 = require("../config/s3");
 const { PutObjectCommand } = require("@aws-sdk/client-s3");
+const { getS3SignedUrl } = require("../config/getSignedUrl");
+const ATTA_BUCKET = process.env.S3_BUCKET_NAME_ATTA;
+const DEATH_ATTACHMENT_FIELDS = [
+  "entryStamp", "deathCertificate", "passportAttachment", "visaAttachment",
+  "consulateCertificate", "deathReport", "hospitalLetter", "corpseBurialPermit",
+  "policeLetter", "otherAttachment",
+];
 
 // @desc Get all death cases
 // @route GET /deathcases
@@ -12,7 +19,18 @@ const getAllDeathCases = asyncHandler(async (req, res) => {
   if (!cases?.length) {
     return res.status(200).json([]);
   }
-  res.status(200).json(cases);
+  const result = await Promise.all(
+    cases.map(async (item) => {
+      const signed = {};
+      for (const field of DEATH_ATTACHMENT_FIELDS) {
+        if (item[field]) {
+          signed[field] = await getS3SignedUrl(ATTA_BUCKET, item[field]);
+        }
+      }
+      return { ...item, ...signed };
+    })
+  );
+  res.status(200).json(result);
 });
 
 // @desc Get a single death case by ID
@@ -20,9 +38,14 @@ const getAllDeathCases = asyncHandler(async (req, res) => {
 // @access Private
 const getDeathCaseById = asyncHandler(async (req, res) => {
   try {
-    const deathCase = await DeathCase.findById(req.params.id);
+    const deathCase = await DeathCase.findById(req.params.id).lean();
     if (!deathCase) {
       return res.status(404).json({ message: "Death case not found" });
+    }
+    for (const field of DEATH_ATTACHMENT_FIELDS) {
+      if (deathCase[field]) {
+        deathCase[field] = await getS3SignedUrl(ATTA_BUCKET, deathCase[field]);
+      }
     }
     res.json(deathCase);
   } catch (error) {
@@ -81,10 +104,9 @@ const createDeathCase = asyncHandler(async (req, res) => {
           Key: s3Key,
           Body: file.buffer,
           ContentType: file.mimetype,
-          ACL: "public-read",
         };
         await s3.send(new PutObjectCommand(uploadParams));
-        attachments[field] = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
+        attachments[field] = s3Key;
       }
     }
   }
@@ -178,10 +200,9 @@ const updateDeathCase = asyncHandler(async (req, res) => {
           Key: s3Key,
           Body: file.buffer,
           ContentType: file.mimetype,
-          ACL: "public-read",
         };
         await s3.send(new PutObjectCommand(uploadParams));
-        deathCase[field] = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}?v=${Date.now()}`;
+        deathCase[field] = s3Key;
       }
     }
   }

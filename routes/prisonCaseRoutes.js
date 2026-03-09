@@ -3,8 +3,12 @@ const router = express.Router();
 const upload = require("../middleware/uploadMiddleware");
 const prisonCaseController = require("../controllers/prisonCaseController");
 const { logger } = require("../middleware/logger");
+const verifyRoles = require("../middleware/verifyRoles");
+const ROLES = require("../config/roles");
 
-// Multiple attachments (10 fields max)
+const canAdd = [ROLES.Admin, ROLES.Special_Papers_Manager, ROLES.Special_Papers_Employee];
+const canEdit = [ROLES.Admin, ROLES.Special_Papers_Manager];
+
 const attachmentFields = [
   { name: "passportAttachment", maxCount: 1 },
   { name: "visaAttachment", maxCount: 1 },
@@ -13,11 +17,10 @@ const attachmentFields = [
 router
   .route("/")
   .get(prisonCaseController.getAllPrisonCases)
-  .post(upload.fields(attachmentFields), logger, prisonCaseController.createPrisonCase)
-  .patch(upload.fields(attachmentFields), logger, prisonCaseController.updatePrisonCase)
-  .delete(logger, prisonCaseController.deletePrisonCase);
+  .post(verifyRoles(...canAdd), upload.fields(attachmentFields), logger, prisonCaseController.createPrisonCase)
+  .patch(verifyRoles(...canEdit), upload.fields(attachmentFields), logger, prisonCaseController.updatePrisonCase)
+  .delete(verifyRoles(...canEdit), logger, prisonCaseController.deletePrisonCase);
 
-// Route for /prisoncases/:id
 router.route("/:id").get(prisonCaseController.getPrisonCaseById);
 
 module.exports = router;

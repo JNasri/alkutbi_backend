@@ -2,6 +2,8 @@ const PurchaseOrder = require("../models/PurchaseOrder");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
 const { uploadToS3 } = require("../config/uploadToS3");
+const { getS3SignedUrl } = require("../config/getSignedUrl");
+const MAIN_BUCKET = process.env.S3_BUCKET_NAME;
 const generatePurchaseOrderId = require("../utils/generatePurchaseOrderId");
 const duplicateCheck = require("../utils/duplicateCheck");
 const purchaseOrderDuplicateConfig = require("../config/checkDuplicatePurchase");
@@ -18,7 +20,15 @@ const getAllPurchaseOrders = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "No purchase orders found" });
   }
 
-  res.json(purchaseOrders);
+  const result = await Promise.all(
+    purchaseOrders.map(async (item) => ({
+      ...item,
+      receiptUrl: await getS3SignedUrl(MAIN_BUCKET, item.receiptUrl),
+      orderPrintUrl: await getS3SignedUrl(MAIN_BUCKET, item.orderPrintUrl),
+    }))
+  );
+
+  res.json(result);
 });
 
 // @desc Create new purchase order
