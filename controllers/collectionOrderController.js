@@ -69,19 +69,8 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
 
 
 
-  // Auto-generate collectingId if not provided
-  if (!collectingId) {
-    collectingId = await generateCollectionOrderId();
-  }
-
-  // Double check uniqueness for collectingId
-  const duplicateId = await CollectionOrder.findOne({ collectingId }).lean().exec();
-  if (duplicateId) {
-    return res.status(409).json({ message: "Duplicate collecting ID. Please try again." });
-  }
-
-  // Confirm data - only status, dates, dayName, and collectingId are required
-  if (!status || !dayName || !dateHijri || !dateAD || !collectingId) {
+  // Confirm data - only status and dates are required at this point
+  if (!status || !dayName || !dateHijri || !dateAD) {
     return res.status(400).json({ message: "Status, day name, dates, and collecting ID are required" });
   }
 
@@ -109,6 +98,17 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
         duplicates: duplicates
       });
     }
+  }
+
+  // Auto-generate collectingId if not provided (after duplicate check to avoid wasting IDs)
+  if (!collectingId) {
+    collectingId = await generateCollectionOrderId();
+  }
+
+  // Double check uniqueness for collectingId
+  const duplicateId = await CollectionOrder.findOne({ collectingId }).lean().exec();
+  if (duplicateId) {
+    return res.status(409).json({ message: "Duplicate collecting ID. Please try again." });
   }
 
   // Validate collect method if provided

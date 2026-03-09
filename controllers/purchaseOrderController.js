@@ -74,19 +74,8 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
   }
 
 
-  // Auto-generate purchasingId if not provided
-  if (!purchasingId) {
-    purchasingId = await generatePurchaseOrderId();
-  }
-
-  // Double check uniqueness for purchasingId
-  const duplicateId = await PurchaseOrder.findOne({ purchasingId }).lean().exec();
-  if (duplicateId) {
-    return res.status(409).json({ message: "Duplicate purchasing ID. Please try again." });
-  }
-
-  // Confirm data - only status, dates, dayName, and purchasingId are required
-  if (!status || !dayName || !dateHijri || !dateAD || !purchasingId) {
+  // Confirm data - only status and dates are required at this point
+  if (!status || !dayName || !dateHijri || !dateAD) {
     return res.status(400).json({ message: "Status, day name, dates, and purchasing ID are required" });
   }
 
@@ -120,6 +109,17 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
         duplicates: duplicates
       });
     }
+  }
+
+  // Auto-generate purchasingId if not provided (after duplicate check to avoid wasting IDs)
+  if (!purchasingId) {
+    purchasingId = await generatePurchaseOrderId();
+  }
+
+  // Double check uniqueness for purchasingId
+  const duplicateId = await PurchaseOrder.findOne({ purchasingId }).lean().exec();
+  if (duplicateId) {
+    return res.status(409).json({ message: "Duplicate purchasing ID. Please try again." });
   }
 
   // Validate payment method if provided
