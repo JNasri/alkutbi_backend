@@ -20,15 +20,7 @@ const getAllPurchaseOrders = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "No purchase orders found" });
   }
 
-  const result = await Promise.all(
-    purchaseOrders.map(async (item) => ({
-      ...item,
-      receiptUrl: await getS3SignedUrl(MAIN_BUCKET, item.receiptUrl),
-      orderPrintUrl: await getS3SignedUrl(MAIN_BUCKET, item.orderPrintUrl),
-    }))
-  );
-
-  res.json(result);
+  res.json(purchaseOrders);
 });
 
 // @desc Create new purchase order
