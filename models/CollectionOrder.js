@@ -45,6 +45,10 @@ const collectionOrderSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    receivingIbanNumber: {
+      type: String,
+      default: "",
+    },
     collectedFrom: {
       type: String,
       required: false,

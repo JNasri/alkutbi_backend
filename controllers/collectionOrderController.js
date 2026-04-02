@@ -37,6 +37,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     voucherNumber,
     item,
     receivingBankName,
+    receivingIbanNumber,
     collectedFrom,
     totalAmount,
     totalAmountText,
@@ -132,6 +133,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
     voucherNumber: voucherNumber || "",
     item: item || "",
     receivingBankName: receivingBankName || "",
+    receivingIbanNumber: receivingIbanNumber || "",
     collectedFrom: collectedFrom || "",
     totalAmount: totalAmount || 0,
     totalAmountText: totalAmountText || "",
@@ -165,6 +167,7 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
     voucherNumber,
     item,
     receivingBankName,
+    receivingIbanNumber,
     collectedFrom,
     totalAmount,
     totalAmountText,
@@ -234,6 +237,7 @@ const updateCollectionOrder = asyncHandler(async (req, res) => {
   collectionOrder.voucherNumber = voucherNumber || "";
   collectionOrder.item = item || "";
   collectionOrder.receivingBankName = receivingBankName || "";
+  collectionOrder.receivingIbanNumber = receivingIbanNumber || "";
   collectionOrder.collectedFrom = collectedFrom;
   collectionOrder.totalAmount = totalAmount;
   collectionOrder.totalAmountText = totalAmountText;
