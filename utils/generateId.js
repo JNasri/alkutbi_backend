@@ -5,16 +5,28 @@ const Counter = require("../models/Counter");
  * Uses MongoDB findOneAndUpdate with $inc to prevent race conditions.
  *
  * @param {string} prefix - e.g. "PO", "W", "S", "CO", "D"
+ * @param {string} [dateAD] - optional date string (YYYY-MM-DD) to use instead of current KSA time
  * @returns {Promise<string>} - e.g. "PO-260308001"
  */
-async function generateId(prefix) {
-  const now = new Date();
-  const ksaOffset = 3 * 60 * 60 * 1000;
-  const ksaTime = new Date(now.getTime() + ksaOffset);
+async function generateId(prefix, dateAD) {
+  let yy, mm, dd;
 
-  const yy = ksaTime.getUTCFullYear().toString().slice(-2);
-  const mm = String(ksaTime.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(ksaTime.getUTCDate()).padStart(2, "0");
+  if (dateAD) {
+    // Parse from the provided date string (YYYY-MM-DD)
+    const parts = dateAD.split("-");
+    yy = parts[0].slice(-2);
+    mm = parts[1];
+    dd = parts[2];
+  } else {
+    // Fall back to current KSA time
+    const now = new Date();
+    const ksaOffset = 3 * 60 * 60 * 1000;
+    const ksaTime = new Date(now.getTime() + ksaOffset);
+    yy = ksaTime.getUTCFullYear().toString().slice(-2);
+    mm = String(ksaTime.getUTCMonth() + 1).padStart(2, "0");
+    dd = String(ksaTime.getUTCDate()).padStart(2, "0");
+  }
+
   const datePrefix = `${prefix}-${yy}${mm}${dd}`;
 
   // Atomically increment the counter for this key.

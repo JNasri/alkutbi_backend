@@ -1,7 +1,7 @@
 const generateId = require("./generateId");
 
-async function generatePurchaseOrderId() {
-  return generateId("PO");
+async function generatePurchaseOrderId(dateAD) {
+  return generateId("PO", dateAD);
 }
 
 module.exports = generatePurchaseOrderId;

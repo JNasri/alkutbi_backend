@@ -105,7 +105,7 @@ const createNewPurchaseOrder = asyncHandler(async (req, res) => {
 
   // Auto-generate purchasingId if not provided (after duplicate check to avoid wasting IDs)
   if (!purchasingId) {
-    purchasingId = await generatePurchaseOrderId();
+    purchasingId = await generatePurchaseOrderId(dateAD);
   }
 
   // Double check uniqueness for purchasingId
@@ -308,57 +308,64 @@ const createBulkPurchaseOrders = asyncHandler(async (req, res) => {
   }
 
   const issuer = req.userId || null;
-  const now = new Date();
-  const yy = now.getFullYear().toString().slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const datePrefix = "PO-" + yy + mm + dd;
 
-  // Find the last order created today with this prefix
-  const lastOrder = await PurchaseOrder.findOne({
-    purchasingId: { $regex: `^${datePrefix}` }
-  }).sort({ purchasingId: -1 });
-
-  let nextNumber = 1;
-  if (lastOrder && lastOrder.purchasingId) {
-    const lastNumberStr = lastOrder.purchasingId.replace(datePrefix, "");
-    const lastNumber = parseInt(lastNumberStr, 10);
-    if (!isNaN(lastNumber)) {
-      nextNumber = lastNumber + 1;
-    }
-  }
-
-  const purchaseOrdersToCreate = orders.map((orderData, index) => {
-    const sequence = String(nextNumber + index).padStart(3, "0");
-    const purchasingId = datePrefix + sequence;
-    
-    return {
-      status: orderData.status || "new",
-      dayName: orderData.dayName,
-      dateHijri: orderData.dateHijri,
-      dateAD: orderData.dateAD,
-      purchasingId,
-      paymentMethod: orderData.paymentMethod || "cash",
-      transactionType: orderData.transactionType || "expenses",
-      item: orderData.item || "",
-      totalAmount: orderData.totalAmount || 0,
-      totalAmountText: orderData.totalAmountText || "",
-      notes: orderData.notes || "",
-      issuer,
-      bankName: "",
-      ibanNumber: "",
-      bankNameFrom: "",
-      ibanNumberFrom: "",
-      bankNameTo: "",
-      ibanNumberTo: "",
-      managementName: "",
-      supplier: "",
-      deductedFrom: "",
-      addedTo: "",
-      receiptUrl: "",
-      orderPrintUrl: "",
-    };
+  // Group orders by dateAD so each date gets its own sequence
+  const byDate = {};
+  orders.forEach((orderData) => {
+    const d = orderData.dateAD;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(orderData);
   });
+
+  // For each date group, find the last existing sequence and build IDs
+  const purchaseOrdersToCreate = [];
+  for (const [dateAD, group] of Object.entries(byDate)) {
+    const parts = dateAD.split("-");
+    const datePrefix = "PO-" + parts[0].slice(-2) + parts[1] + parts[2];
+
+    const lastOrder = await PurchaseOrder.findOne({
+      purchasingId: { $regex: `^${datePrefix}` }
+    }).sort({ purchasingId: -1 });
+
+    let nextNumber = 1;
+    if (lastOrder && lastOrder.purchasingId) {
+      const lastNumberStr = lastOrder.purchasingId.replace(datePrefix, "");
+      const lastNumber = parseInt(lastNumberStr, 10);
+      if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+    }
+
+    group.forEach((orderData, index) => {
+      const sequence = String(nextNumber + index).padStart(3, "0");
+      const purchasingId = datePrefix + sequence;
+
+      purchaseOrdersToCreate.push({
+        status: orderData.status || "new",
+        dayName: orderData.dayName,
+        dateHijri: orderData.dateHijri,
+        dateAD: orderData.dateAD,
+        purchasingId,
+        paymentMethod: orderData.paymentMethod || "cash",
+        transactionType: orderData.transactionType || "expenses",
+        item: orderData.item || "",
+        totalAmount: orderData.totalAmount || 0,
+        totalAmountText: orderData.totalAmountText || "",
+        notes: orderData.notes || "",
+        issuer,
+        bankName: orderData.bankName || "",
+        ibanNumber: orderData.ibanNumber || "",
+        bankNameFrom: orderData.bankNameFrom || "",
+        ibanNumberFrom: orderData.ibanNumberFrom || "",
+        bankNameTo: orderData.bankNameTo || "",
+        ibanNumberTo: orderData.ibanNumberTo || "",
+        managementName: orderData.managementName || "",
+        supplier: orderData.supplier || "",
+        deductedFrom: orderData.deductedFrom || "",
+        addedTo: orderData.addedTo || "",
+        receiptUrl: orderData.receiptUrl || "",
+        orderPrintUrl: orderData.orderPrintUrl || "",
+      });
+    });
+  }
 
   const savedOrders = await PurchaseOrder.insertMany(purchaseOrdersToCreate);
 

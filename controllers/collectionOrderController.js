@@ -95,7 +95,7 @@ const createNewCollectionOrder = asyncHandler(async (req, res) => {
 
   // Auto-generate collectingId if not provided (after duplicate check to avoid wasting IDs)
   if (!collectingId) {
-    collectingId = await generateCollectionOrderId();
+    collectingId = await generateCollectionOrderId(dateAD);
   }
 
   // Double check uniqueness for collectingId
@@ -289,51 +289,59 @@ const createBulkCollectionOrders = asyncHandler(async (req, res) => {
   }
 
   const issuer = req.userId || null;
-  const now = new Date();
-  const yy = now.getFullYear().toString().slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const datePrefix = "CO-" + yy + mm + dd;
 
-  // Find the last order created today with this prefix
-  const lastOrder = await CollectionOrder.findOne({
-    collectingId: { $regex: `^${datePrefix}` }
-  }).sort({ collectingId: -1 });
-
-  let nextNumber = 1;
-  if (lastOrder && lastOrder.collectingId) {
-    const lastNumberStr = lastOrder.collectingId.replace(datePrefix, "");
-    const lastNumber = parseInt(lastNumberStr, 10);
-    if (!isNaN(lastNumber)) {
-      nextNumber = lastNumber + 1;
-    }
-  }
-
-  const collectionOrdersToCreate = orders.map((orderData, index) => {
-    const sequence = String(nextNumber + index).padStart(3, "0");
-    const collectingId = datePrefix + sequence;
-    
-    return {
-      status: orderData.status || "new",
-      dayName: orderData.dayName,
-      dateHijri: orderData.dateHijri,
-      dateAD: orderData.dateAD,
-      collectingId,
-      collectMethod: orderData.collectMethod || "cash",
-      collectedFrom: orderData.collectedFrom || "umrah",
-      totalAmount: orderData.totalAmount || 0,
-      totalAmountText: orderData.totalAmountText || "",
-      notes: orderData.notes || "",
-      issuer,
-      voucherNumber: orderData.voucherNumber || "",
-      item: orderData.item || "",
-      receivingBankName: "",
-      deductedFrom: "",
-      addedTo: "",
-      receiptUrl: "",
-      orderPrintUrl: "",
-    };
+  // Group orders by dateAD so each date gets its own sequence
+  const byDate = {};
+  orders.forEach((orderData) => {
+    const d = orderData.dateAD;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(orderData);
   });
+
+  // For each date group, find the last existing sequence and build IDs
+  const collectionOrdersToCreate = [];
+  for (const [dateAD, group] of Object.entries(byDate)) {
+    const parts = dateAD.split("-");
+    const datePrefix = "CO-" + parts[0].slice(-2) + parts[1] + parts[2];
+
+    const lastOrder = await CollectionOrder.findOne({
+      collectingId: { $regex: `^${datePrefix}` }
+    }).sort({ collectingId: -1 });
+
+    let nextNumber = 1;
+    if (lastOrder && lastOrder.collectingId) {
+      const lastNumberStr = lastOrder.collectingId.replace(datePrefix, "");
+      const lastNumber = parseInt(lastNumberStr, 10);
+      if (!isNaN(lastNumber)) nextNumber = lastNumber + 1;
+    }
+
+    group.forEach((orderData, index) => {
+      const sequence = String(nextNumber + index).padStart(3, "0");
+      const collectingId = datePrefix + sequence;
+
+      collectionOrdersToCreate.push({
+        status: orderData.status || "new",
+        dayName: orderData.dayName,
+        dateHijri: orderData.dateHijri,
+        dateAD: orderData.dateAD,
+        collectingId,
+        collectMethod: orderData.collectMethod || "cash",
+        collectedFrom: orderData.collectedFrom || "umrah",
+        totalAmount: orderData.totalAmount || 0,
+        totalAmountText: orderData.totalAmountText || "",
+        notes: orderData.notes || "",
+        issuer,
+        voucherNumber: orderData.voucherNumber || "",
+        item: orderData.item || "",
+        receivingBankName: orderData.receivingBankName || "",
+        receivingIbanNumber: orderData.receivingIbanNumber || "",
+        deductedFrom: orderData.deductedFrom || "",
+        addedTo: orderData.addedTo || "",
+        receiptUrl: orderData.receiptUrl || "",
+        orderPrintUrl: orderData.orderPrintUrl || "",
+      });
+    });
+  }
 
   const savedOrders = await CollectionOrder.insertMany(collectionOrdersToCreate);
 
